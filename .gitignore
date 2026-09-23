@@ -1,0 +1,15 @@
+.venv/
+.env
+
+__pycache__/
+*.pyc
+
+data/raw/
+data/staging/
+data/mart/
+data/validation/
+
+db/*.duckdb
+db/*.duckdb.wal
+
+*.log

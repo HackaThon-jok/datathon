@@ -1,0 +1,227 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Datathon — Python 本地验证与 AWS 数据平台架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1380, 860]
+  },
+  "components": [
+    {
+      "id": "legacySource",
+      "type": "external",
+      "label": "旧系统 / Excel",
+      "sublabel": "源数据与旧报表逻辑",
+      "pos": [50, 270],
+      "size": [170, 70]
+    },
+    {
+      "id": "pythonPipeline",
+      "type": "backend",
+      "label": "Python Pipeline",
+      "sublabel": "提取、转换、清单与验证",
+      "pos": [290, 270],
+      "size": [190, 70],
+      "tag": "统一开发基础"
+    },
+    {
+      "id": "duckdbLocal",
+      "type": "database",
+      "label": "DuckDB",
+      "sublabel": "本地 SQL 与上线前测试",
+      "pos": [550, 120],
+      "size": [180, 70],
+      "tag": "Phase 1"
+    },
+    {
+      "id": "s3Lake",
+      "type": "cloud",
+      "label": "Amazon S3",
+      "sublabel": "RAW / STAGING / MART Parquet",
+      "pos": [550, 270],
+      "size": [190, 70],
+      "tag": "Phase 2"
+    },
+    {
+      "id": "glueCatalog",
+      "type": "cloud",
+      "label": "AWS Glue Data Catalog",
+      "sublabel": "Schema 与分区元数据",
+      "pos": [820, 120],
+      "size": [210, 70]
+    },
+    {
+      "id": "athenaCandidate",
+      "type": "database",
+      "label": "Amazon Athena",
+      "sublabel": "候选 MART 查询",
+      "pos": [820, 270],
+      "size": [210, 70]
+    },
+    {
+      "id": "validationGate",
+      "type": "security",
+      "label": "Validation Gate",
+      "sublabel": "DuckDB ↔ Athena 行数与 KPI",
+      "pos": [1090, 270],
+      "size": [210, 70],
+      "tag": "通过后发布"
+    },
+    {
+      "id": "publishedView",
+      "type": "database",
+      "label": "Published View",
+      "sublabel": "已验证 Athena 数据入口",
+      "pos": [1090, 440],
+      "size": [210, 70]
+    },
+    {
+      "id": "streamlitApp",
+      "type": "frontend",
+      "label": "Streamlit",
+      "sublabel": "AWS 托管展示与状态",
+      "pos": [1090, 610],
+      "size": [210, 70]
+    },
+    {
+      "id": "orchestration",
+      "type": "messagebus",
+      "label": "AWS Orchestration",
+      "sublabel": "EventBridge / Step Functions",
+      "pos": [550, 520],
+      "size": [210, 70],
+      "tag": "Phase 3"
+    },
+    {
+      "id": "operations",
+      "type": "security",
+      "label": "AWS Operations",
+      "sublabel": "IAM / Secrets / CloudWatch / IaC",
+      "pos": [820, 610],
+      "size": [210, 70]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "本地开发与上线前验证",
+      "wraps": ["pythonPipeline", "duckdbLocal"],
+      "pad": 28
+    },
+    {
+      "kind": "region",
+      "label": "AWS 云端环境",
+      "wraps": ["s3Lake", "glueCatalog", "athenaCandidate", "validationGate", "publishedView", "streamlitApp", "orchestration", "operations"],
+      "pad": 30
+    }
+  ],
+  "connections": [
+    {
+      "id": "extractSource",
+      "from": "legacySource",
+      "to": "pythonPipeline",
+      "label": "读取与快照",
+      "variant": "emphasis"
+    },
+    {
+      "id": "testLocally",
+      "from": "pythonPipeline",
+      "to": "duckdbLocal",
+      "label": "执行相同 SQL / 规则"
+    },
+    {
+      "id": "writeParquet",
+      "from": "pythonPipeline",
+      "to": "s3Lake",
+      "label": "boto3 / PyArrow",
+      "labelAt": [620, 250]
+    },
+    {
+      "id": "registerMetadata",
+      "from": "s3Lake",
+      "to": "glueCatalog",
+      "label": "Schema / partitions"
+    },
+    {
+      "id": "queryCandidate",
+      "from": "s3Lake",
+      "to": "athenaCandidate",
+      "label": "查询 Parquet",
+      "labelAt": [780, 354]
+    },
+    {
+      "id": "catalogLookup",
+      "from": "glueCatalog",
+      "to": "athenaCandidate",
+      "label": "Catalog metadata",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [925, 204]
+    },
+    {
+      "id": "validateCloud",
+      "from": "athenaCandidate",
+      "to": "validationGate",
+      "label": "候选结果",
+      "variant": "security"
+    },
+    {
+      "id": "compareLocal",
+      "from": "duckdbLocal",
+      "to": "validationGate",
+      "label": "独立本地基准",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "top",
+      "via": [[780, 155], [780, 80], [1195, 80]]
+    },
+    {
+      "id": "publishValidated",
+      "from": "validationGate",
+      "to": "publishedView",
+      "label": "质量关卡通过",
+      "variant": "emphasis",
+      "labelAt": [1195, 354]
+    },
+    {
+      "id": "serveDashboard",
+      "from": "publishedView",
+      "to": "streamlitApp",
+      "label": "只读查询",
+      "labelAt": [1195, 524]
+    },
+    {
+      "id": "schedulePipeline",
+      "from": "orchestration",
+      "to": "pythonPipeline",
+      "label": "触发运行",
+      "variant": "dashed"
+    },
+    {
+      "id": "observePipeline",
+      "from": "orchestration",
+      "to": "operations",
+      "label": "日志、告警与权限",
+      "variant": "security",
+      "labelAt": [790, 604]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Phase 1 — Local Prototype",
+      "items": ["Python + DuckDB 快速迭代", "固定测试数据与 KPI 基准"]
+    },
+    {
+      "dot": "emerald",
+      "title": "Phase 2 — AWS MVP",
+      "items": ["S3 + Glue Catalog + Athena", "DuckDB 与 Athena 对账后发布"]
+    },
+    {
+      "dot": "violet",
+      "title": "Phase 3 — Production-ready",
+      "items": ["自动编排、监控与安全", "IaC、恢复与成本控制"]
+    }
+  ]
+}
