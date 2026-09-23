@@ -1,174 +1,199 @@
-# Datathon｜AI 辅助传统系统迁移
+# Datathon Use Case 4｜AI 辅助传统系统迁移
 
-[English](README.md) | [简体中文](README_CN.md)
+[简体中文](README_CN.md) · [English](README.md)
 
-> 用例 4 · 解决方案架构与团队实施计划  
-> **当前状态：** 本文为拟议架构和开发计划，不代表已完成部署。  
-> **目标平台：** AWS 上的 Snowflake。
+> **项目状态：** 本文是团队拟采用的架构与交付计划，不代表各项功能已完成。  
+> **目标：** 将旧系统的医疗用品销售数据和报表迁移到 **Snowflake on AWS**；展示 AI 辅助 SQL 转换，并使用独立基准与自动／人工检查验证迁移结果。  
+> **MVP 技术栈：** Python + SQL + Amazon S3 + Snowflake + Streamlit。**Spring Boot、独立 REST API、Java 和前端 JavaScript 均非必需。**
 
-## 1. 项目概述
+## 1. 项目目标与范围
 
-将传统医疗用品销售报表迁移到云端分析平台。通过 AI 辅助梳理旧系统资产、映射字段、转换 SQL，以及编写测试和文档。新系统的业务结果必须与旧系统基准对账；只做出一个能够展示数字的 Dashboard 不足以证明迁移正确。
+本项目的重点是**可验证的系统迁移**，不是仅搭建一个展示数据的 Dashboard。团队需覆盖以下五项成果：
 
-| 预期成果 | 交付证据 |
+| 目标 | MVP 交付证据 |
 |---|---|
-| 分析旧系统资产 | 源文件／表、旧 SQL、报表和 KPI 定义清单 |
-| 设计目标架构 | 架构图、数据流、组件职责与权限边界 |
-| 展示 AI 辅助迁移 | 原始 SQL、AI 转换结果、人工修改与审核记录 |
-| 验证及测试 | 新旧行数、KPI 对账和数据质量检查 |
-| 编写迁移文档 | 数据字典、新旧字段映射、操作手册和已知限制 |
+| 分析旧系统资产 | 源数据清单、字段定义、旧 SQL／报表逻辑及业务 KPI 口径 |
+| 设计目标架构 | 数据流图、组件职责、访问权限及角色交接说明 |
+| 展示 AI 辅助迁移 | 原始 SQL／报表逻辑、AI 生成的 Snowflake SQL、人工修改与审核记录 |
+| 验证与测试 | 导入行数检查、业务 KPI 新旧对账、数据质量报告及失败记录 |
+| 迁移文档 | 源到目标字段映射、重跑步骤、验证结果和已知限制 |
 
-**MVP：** 从一份约定的数据源生成“按地区统计的月度销售额”。在编写 SQL 之前，统一报表日期、币种、销售额、退货和地区的业务定义。仓库现有 Excel 工作簿只能先视为候选数据源，应检查工作表和字段，不能直接假定它们是旧数据库的导出结果。
+**MVP 用例：** 从一份确认过的原始数据生成“按月份、地区汇总的销售额”报表。实施前，Data Analyst 应明确业务日期、币种、退货处理、汇总粒度，以及旧系统的基准结果。仓库中现有的 Excel 文件只作为**候选数据源**；具体工作表、列名、字段语义及是否存在真实旧 SQL，需要先检查，不预先假定。
 
-## 2. 目标系统架构
+**范围界限：** Snowflake 仍是迁移目标；S3 保存对象而非执行 SQL。Python 负责数据提取、批次控制、验证和界面连接；大批量清洗、关联和聚合优先在 Snowflake SQL 中完成。只有在确实需要多个客户端或独立服务时，才额外引入 FastAPI；不为技术展示而增加 Spring Boot。
+
+## 2. 目标架构
 
 ```mermaid
 flowchart TD
-    A["传统数据库 / Excel 数据源"] --> B["导出与字段映射"]
-    B --> C["Amazon S3：原始 CSV / Parquet"]
-    C -->|"External Stage + COPY INTO"| D["Snowflake RAW：原始层"]
-    D --> E["Snowflake STAGING：清洗与类型转换"]
-    E --> F["Snowflake MART：已验证的 KPI"]
-    F -->|"只读 JDBC / SQL"| G["Java Spring Boot REST API"]
-    G -->|"HTTPS / JSON"| H["前端 Dashboard"]
-    I["旧 SQL / 业务口径"] --> J["AI 转换 + 人工审核"]
-    J --> E
-    A --> K["旧系统 KPI 基准"]
-    F --> L["新旧数据对账与测试"]
-    K --> L
-    L --> M["迁移文档"]
+    A["旧数据库 / Excel 源数据"] --> B["Python：检查、导出与批次清单"]
+    B --> C["Amazon S3：原始文件与 manifest"]
+    C -->|"External Stage + COPY INTO"| D["Snowflake RAW：原始批次"]
+    D --> E["Snowflake STAGING：标准化与质量检查"]
+    E --> F["候选 MART：SQL 业务指标"]
+    A --> K["旧系统独立基准结果"]
+    F --> V{"Validation Gate\n行数、质量、KPI 对账"}
+    K --> V
+    V -->|通过 / 批准| P["正式发布版本：已验证 MART"]
+    V -->|失败| Q["FAILED：保留证据与上次已发布版本"]
+    P --> H["Streamlit：销售看板与迁移状态"]
+    L["旧 SQL / 业务定义"] --> AI["AI 辅助转换 + 人工审核"]
+    AI --> E
+    V --> R["对账报告、运行日志与迁移文档"]
 ```
 
-| 组件 | 主要职责 | 边界与约束 |
+| 组件 | 职责 | 明确边界 |
 |---|---|---|
-| 旧数据库／Excel | 提供原始数据、报表、已有 SQL 和基准结果 | 保留原有业务口径以便对比 |
-| Amazon S3 | 保存原始导出文件和导入清单 | S3 是对象存储，**不是** SQL 查询引擎 |
-| AWS 上的 Snowflake | 导入、清洗、建模、查询与验证 | 使用 **RAW → STAGING → MART**；大批量 ETL 在 SQL 层完成 |
-| Spring Boot | 校验请求、控制权限，以 REST API 返回查询结果 | 只读访问 MART；不在每次 API 请求时用 Java 批量处理 S3 文件 |
-| Dashboard | 展示销售 KPI 和迁移验证情况 | 通过 API 取数，不在浏览器暴露数据库凭证 |
+| 旧系统／Excel | 提供原始数据、旧查询及独立基准 | 不为了让结果一致而改写旧系统基准 |
+| Python | 数据检查与导出、批次清单、管道执行及验证 | 不将全部数据处理和聚合塞入 Streamlit |
+| Amazon S3 | 保存源文件快照与批次 manifest | 对象存储；不负责 SQL 查询 |
+| Snowflake RAW | 记录源数据及批次信息 | 保留可追溯来源，不静默丢弃异常行 |
+| Snowflake STAGING | 类型转换、清洗、映射与数据质量检查 | 记录处理规则及被过滤／拒绝的记录 |
+| Snowflake 候选 MART | 计算待验证的业务 KPI | 不直接覆盖 Dashboard 正在使用的已发布结果 |
+| Validation Gate | 比较数据完整性、业务 KPI、关键质量规则 | 未通过或未解释的关键差异不得发布 |
+| Streamlit | 只读查询已发布数据，显示 KPI 与验证状态 | 凭证仅保存在服务端安全配置中，不写入仓库 |
 
-**首次导入：** 从旧系统导出 CSV／Parquet → 上传 S3 → 配置最小权限的 Snowflake Storage Integration 和 External Stage → 通过 `COPY INTO` 导入 RAW。优先实现可重复的手动批处理；Snowpipe、Streams/Tasks 和 dbt 可以后续再加。
+**简化部署：** MVP 的 Python 脚本和 Streamlit 可以先在团队开发机运行；S3 和 Snowflake 使用云服务。不要求所有组件都部署到 AWS，除非比赛规则另有规定。
 
-### 建议的仓库结构
+## 3. 可信数据管道与故障恢复
 
-以下目录为**计划中的结构**，并非已经创建的文件。现有 Excel 文件应作为候选原始数据保留。
+本项目的 **Trustworthy Pipeline（可信数据管道）** 指原始数据可追溯、转换逻辑可审核、结果能与独立基准对账，且未通过验证的结果不会被当作正式数据使用。**Resilience（韧性）** 指故障可观察、可控制，修复后能安全重试，并保留上次验证通过的结果。
+
+### 3.1 批次、状态和来源追溯
+
+每次执行分配唯一 `run_id`；每份源文件记录稳定的 `source_file_id` 或文件哈希、S3 对象路径、导出时间、源行数及所属批次。建议状态如下：
+
+```text
+PENDING → INGESTING → TRANSFORMING → VALIDATING → PUBLISHED
+                 ↘ FAILED ←───────────────↙
+```
+
+失败可发生在任意处理阶段。批次日志至少记录 `run_id`、源文件、开始／结束时间、当前状态、导入行数、失败原因和验证结果。**只有实际验证完成后才能标记为 PUBLISHED。** 失败重跑时创建新的运行记录，并保留原始失败证据。
+
+S3 示例路径（仅为方案，未创建实际 Bucket）：
+
+```text
+s3://<project-bucket>/raw/<batch_id>/sales.csv
+s3://<project-bucket>/raw/<batch_id>/manifest.json
+s3://<project-bucket>/rejected/<batch_id>/invalid_records.csv
+```
+
+不要覆盖历史原始文件；必要时启用 S3 Versioning。`manifest.json` 应包含源文件标识、预期行数及内容哈希（例如 SHA-256），用于重复导入判断与追溯。
+
+### 3.2 幂等性与安全重试
+
+- **Minimum：** 按文件与批次标识检查是否已成功导入；重跑前检查 RAW 现状，不直接向正式 MART 再次追加同一批数据。
+- **Standard：** 使用批次清单和明确的去重／替换策略，使同一批次重跑不会重复计数；重试网络或临时连接错误时设置次数上限和退避时间。
+- **Advanced：** 实现阶段级恢复、发布版本指针、可回滚的发布流程和运行监控。
+
+`COPY INTO` 的加载历史可以辅助避免重复加载，但**不能单独保证整个管道幂等**：文件内容变更、强制重新加载、源数据业务重复与下游重复聚合仍需单独处理。CSV 格式错误、SQL 逻辑错误和新旧 KPI 差异不应通过盲目自动重试掩盖。
+
+### 3.3 Validation Gate（验证关卡）
+
+1. Python／SQL 完成数据导入及转换，在**独立候选 MART** 中生成待发布指标。
+2. 使用独立保存的旧系统基准，检查源／RAW 行数、关键字段、月份 × 地区 KPI 及约定的数据质量规则。
+3. 关键检查全部通过后，才能将该批次标记为可发布。MVP 可以由负责人进行人工批准；Standard 再增加自动化发布条件。
+4. 验证失败时保留候选数据、错误记录和**上一次已发布版本**，不让 Dashboard 误读失败批次；若尚无成功版本，则显示“暂无已验证数据”。
+5. Streamlit 展示已发布版本、数据更新时间以及最近一次迁移的验证状态，避免把旧数据误展示为最新数据。
+
+**注意：** 简单先写正式 MART 再运行检查，不构成有效的发布关卡。候选数据与正式查询入口必须隔离。实际实现时可采用独立候选表，加受控的发布视图／版本记录；发布操作本身需要避免读到一半更新的数据。
+
+## 4. AI 辅助迁移：生成、审核与对账
+
+1. 保存未经修改的旧 SQL／报表定义、源表 Schema、业务口径和独立基准。
+2. 使用 AI 生成 Snowflake SQL 和源字段到目标字段映射草稿。
+3. 人工检查连接键、NULL、日期、币种、退货逻辑、聚合粒度、访问权限与 SQL 是否具有破坏性。
+4. 仅在 DEV 或受控候选数据上执行审核后的 SQL。
+5. 将新旧结果按相同口径对账；记录提示词／模型版本、AI 输出、人工修改、测试与审核人。
+
+**不能让 AI 同时编写迁移逻辑和唯一的“正确答案”，再把两者一致当作迁移成功。** 验证基准应来自原系统原始结果或经人工确认、独立计算的业务口径。
+
+## 5. 三个交付等级与团队职责
+
+**Minimum Delivery（基础）** 是每个角色的必需工作，保证端到端 MVP 可运行且结果经过基本验证。**Standard Delivery（标准）** 在 Minimum 基础上增加可重跑性、自动化及更细致的对账。**Advanced Delivery（进阶）** 在前两级基础上增强恢复能力、可观测性及可复用性，不是所有成员都必须完成。
+
+六种角色是**职责划分，不一定对应六个不同的人**。每个角色单独的中英文 README 和三级验收标准放在 [`doc/`](doc/) 的对应目录中；下面是项目级最低交接要求。
+
+| 角色 | Minimum Delivery | Standard Delivery | Advanced Delivery |
+|---|---|---|---|
+| [Solution Architect](doc/Solution_Architect/README_CN.md) | 明确范围、Python + SQL 架构、数据流、接口、数据验收与分工 | 设计批次状态、验证关卡、发布策略和跨角色集成测试 | 版本化发布、回滚方案、故障演练及可复用迁移手册 |
+| [Cloud Engineer](doc/Cloud_Engineer/README_CN.md) | 配置 S3、Snowflake DEV、最小权限和 External Stage | 增加环境隔离、成本控制、访问审计和可重复配置 | IaC、监控告警、备份及恢复演练 |
+| [Data Engineer](doc/Data_Engineer/README_CN.md) | 使用 Python 检查并导出一份数据，经 S3 导入 RAW 并核对行数 | 加入 batch_id、导入日志、幂等重跑、有限重试和错误隔离 | 增量导入、阶段恢复和自动化调度 |
+| [Analytics Engineer](doc/Analytics_Engineer/README_CN.md) | AI 转换至少一段旧 SQL，经人工审核，建立 STAGING／候选 MART | 增加转换测试、字段映射、重复处理和分组对账支持 | 数据血缘、可复用模型及 AI 测试草稿自动化 |
+| [Data Analyst](doc/Data_analyst/README_CN.md) | 确定 KPI 及独立基准，指定或承担 Streamlit MVP 看板开发 | 增加筛选、分组对比、验证状态与异常可视化 | 增加迁移就绪度及决策支持展示 |
+| [Data Scientist](doc/Data_Scientist/README_CN.md) | 生成质量报告，核对源／目标行数和一个关键 KPI | 自动化测试、月份 × 地区分组对账、异常归因 | 漂移检测、AI 转换准确性评估；数据支持时加入可选 ML 演示 |
+
+**前端实现的责任必须明确：** Streamlit 开发由 Team Lead 指定具体人员负责，可由 Data Analyst 承担，也可交给具备 Python 经验的其他成员；不能把“设计 Dashboard”默认为“已经有人实现 Dashboard”。所有角色交付具体代码、文档或验证证据，而不只提交文字计划。
+
+### 角色交接与依赖
+
+```text
+Cloud Engineer → Data Engineer：S3 路径、External Stage、访问权限
+Data Engineer → Analytics Engineer：RAW 表名、Schema、源文件与批次信息
+Data Analyst → Analytics Engineer / Data Scientist：KPI 定义与独立基准
+Analytics Engineer → Data Scientist：候选 MART、SQL 与转换记录
+Data Scientist → Solution Architect：验证报告、未解决差异及发布建议
+Solution Architect → Streamlit 开发负责人：已发布 MART 查询入口与展示契约
+```
+
+## 6. 端到端 MVP 验收
+
+- [ ] 确认一份可使用的数据源、旧 SQL／报表逻辑及月度销售 KPI 口径。
+- [ ] 画出并评审数据流、角色负责人和交接方式。
+- [ ] 将源数据导出为 CSV／Parquet，保存到 S3，成功导入 Snowflake RAW。
+- [ ] 保存源文件、批次清单、导入行数及必要的失败记录。
+- [ ] AI 辅助转换至少一段旧 SQL／报表逻辑，留存原始结果、转换结果及人工审核记录。
+- [ ] 建立 STAGING 和候选 MART，生成月度销售指标。
+- [ ] 比较源／RAW 行数和相同业务口径下的月度及地区销售 KPI；解释所有关键差异。
+- [ ] 仅将验证通过的结果供 Streamlit 查询；失败时不将候选批次展示为正式数据。
+- [ ] Streamlit 展示至少一项 KPI、月份／地区筛选、已发布批次和数据更新时间。
+- [ ] 提供重跑说明、测试记录、已知限制和端到端演示步骤。
+
+**验收原则：** 仅“SQL 能跑通”或“Dashboard 有数字”都不等于完成迁移。最低验收必须包含**原始来源、AI 辅助转换证据、独立对账和已验证结果展示**。
+
+## 7. 推荐的项目目录
+
+以下是**拟议目录**；尚未创建的目录不可当成已有实现。保留仓库当前的 Excel 候选文件，不在 README 中假设其具体字段。
 
 ```text
 datathon/
-├── README.md
-├── README_CN.md
-├── 2026-*.xlsx               # 当前已有的候选数据文件
+├── README.md                       # 英文总览
+├── README_CN.md                    # 中文总览
+├── doc/
+│   ├── Solution_Architect/{README.md,README_CN.md}
+│   ├── Cloud_Engineer/{README.md,README_CN.md}
+│   ├── Data_Engineer/{README.md,README_CN.md}
+│   ├── Analytics_Engineer/{README.md,README_CN.md}
+│   ├── Data_analyst/{README.md,README_CN.md}
+│   └── Data_Scientist/{README.md,README_CN.md}
+├── data/                           # Git 跟踪规则由团队确认；不要提交敏感数据
+├── src/
+│   ├── extract.py                  # 源数据导出
+│   ├── ingest.py                   # S3 → Snowflake RAW
+│   ├── pipeline.py                 # 状态与批次编排
+│   └── validate.py                 # 质量与业务对账
+├── sql/
+│   ├── legacy/
+│   ├── staging/
+│   ├── mart/
+│   └── tests/
+├── dashboard/app.py                # Streamlit
 ├── docs/
-│   ├── architecture.md       # 架构说明
-│   ├── data-dictionary.md    # 数据字典
-│   ├── source-to-target.md   # 新旧字段映射
-│   ├── ai-conversion-log.md  # AI 转换与人工审核记录
-│   └── validation-report.md  # 数据对账报告
-├── sql/{legacy,raw,staging,mart,tests}/
-├── backend/                  # Spring Boot
-├── frontend/                 # Dashboard
-└── infra/                    # 基础设施定义，不存储密钥
+│   ├── architecture.md
+│   ├── data-dictionary.md
+│   ├── source-to-target.md
+│   ├── ai-conversion-log.md
+│   └── validation-report.md
+└── infra/                          # 云配置文档，不提交凭证
 ```
 
-## 3. API 与 Dashboard 接口约定
+## 8. 安全、成本及待确认事项
 
-建议先实现：`GET /api/v1/sales/monthly?month=YYYY-MM&region=REGION`。Spring Boot 使用参数化 SQL 查询已批准的 MART 表／视图，再以 JSON 返回月份、地区、币种、月销售额和数据刷新时间。前后端分工开发前，需统一精确的响应 Schema 和 KPI 口径；后端应进行参数校验、设置查询超时，并配置必要的权限控制。
+- AWS IAM 与 Snowflake 采用最小权限。Streamlit 使用只读账户查询已发布 MART；凭证仅放在安全的服务端配置或密钥管理服务中，不提交到 GitHub。
+- 尽量使用合成或脱敏演示数据；若涉及真实个人或健康信息，先确认数据使用许可和适用隐私要求。
+- 设置 AWS 预算告警，使用适当大小并能自动暂停的 Snowflake Warehouse，避免无必要的常驻服务。
+- **仍需确认：** 真实源文件结构、旧系统 SQL 是否可用、团队实际人数、比赛期限、云预算及部署要求。若不存在可执行的旧 SQL，应如实说明，并使用经人工确认的旧报表逻辑开展 AI 辅助转换演示，不能虚构迁移对象。
 
-最小 Dashboard 包含月度销售 KPI、月份／地区筛选、一张趋势图或地区对比图，以及迁移验证状态或验证报告链接。在迁移正确性得到证明前，不应把大量时间投入复杂 UI。
+**当前实施状态：** 本文件仅为修改后的设计草案。任务状态与完成证据应在开发后逐项更新，未通过测试前不得标注为已交付。
 
-## 4. 团队分工与实施阶段
-
-下面的六种**角色表示职责，不代表必须有六个人**。根据实际团队人数确定负责人。
-
-### 第一阶段 — Basic：端到端 MVP
-
-| 角色 | 主要任务 | 交付物 |
-|---|---|---|
-| **Solution Architect／解决方案架构师** | 定义范围、目标架构、KPI 口径、API 契约、依赖关系和验收标准。 | 架构图 v1、范围和接口约定 |
-| **Cloud Engineer／云工程师** | 配置 S3、最小权限 IAM、Snowflake DEV、Storage Integration 和 External Stage。 | 可用的开发环境 |
-| **Data Engineer／数据工程师** | 检查数据源，导出 CSV／Parquet，上传 S3，使用 `COPY INTO` 导入一张 RAW 表。 | 可重复的首次导入及行数日志 |
-| **Analytics Engineer／分析工程师** | 梳理旧 SQL，用 AI 转换一段典型查询，人工审核并实现 STAGING／MART。 | 原始和转换 SQL、审核记录、首个模型 |
-| **Data Analyst／数据分析师** | 定义销售额、退货、统计期间和地区，计算旧系统基准并设计看板草图。 | KPI 字典、基准数值和界面草图 |
-| **Data Scientist／数据科学家** | 检查缺失值、重复键、非法日期／金额，比较新旧系统初步结果。 | 数据质量报告和首次对账 |
-
-**第一阶段验收：** 一份数据能够重复导入 RAW；至少一段 AI 转换 SQL 经人工审核；新旧行数和约定 KPI 一致或差异有明确解释；API 和 Dashboard 展示经过验证的结果。
-
-### 第二阶段 — Standard：可靠且可审计的迁移
-
-| 角色 | 主要任务 | 交付物 |
-|---|---|---|
-| **Solution Architect／解决方案架构师** | 完善 RAW／STAGING／MART、权限、接口、审核关卡和风险清单。 | 架构图 v2 与风险清单 |
-| **Cloud Engineer／云工程师** | 条件允许时区分 DEV／PROD，增加成本控制、可重复环境配置及可选定时导入。 | 可管理的云环境 |
-| **Data Engineer／数据工程师** | 实现幂等导入、批次日志、Schema 变更处理和可选增量导入。 | 可重复执行的数据管道 |
-| **Analytics Engineer／分析工程师** | 扩展有测试的 SQL 模型，AI 转换更多旧 SQL，记录提示词、生成结果、人工修改和测试；可选 dbt。 | SQL 模型、测试与 AI 转换记录 |
-| **Data Analyst／数据分析师** | 对比新旧报表的筛选、聚合和 KPI 口径，完善 Dashboard。 | 新旧报表对比报告 |
-| **Data Scientist／数据科学家** | 按月份 × 地区 × 产品类别对账，解释差异并统计 AI SQL 首次正确率。 | 详细对账与 AI 效果评估 |
-
-**第二阶段验收：** 重复运行不产生重复数据，关键测试通过，总体和分组 KPI 对账完成，新旧字段映射与 AI 审核决定可追溯。
-
-### 第三阶段 — Advanced：可选增强
-
-| 角色 | 主要任务 | 交付物 |
-|---|---|---|
-| **Solution Architect／解决方案架构师** | 编写可复用迁移手册、回滚方案和工作量估算。 | 迁移手册与风险／工时总结 |
-| **Cloud Engineer／云工程师** | 按需加入 Terraform、CI/CD、监控和成本告警。 | 可复现的基础设施 |
-| **Data Engineer／数据工程师** | 试做受控 AI 助手：建议 SQL、执行经过批准的 DEV 测试并标记差异。 | 需人工批准的迁移原型 |
-| **Analytics Engineer／分析工程师** | 使用 AI 起草测试和文档，展示数据血缘。 | 文档与血缘展示 |
-| **Data Analyst／数据分析师** | 为看板添加迁移就绪检查和待解决差异。 | 迁移质量看板 |
-| **Data Scientist／数据科学家** | 数据支持时展示需求预测或临期库存预警。 | 可选 ML 演示 |
-
-**优先级：** 首先完成第一阶段，其次优先做第二阶段的 AI 转换记录与数据对账。第三阶段不是 MVP 的前置条件。
-
-## 5. AI 辅助 SQL 转换流程
-
-1. **保存原始资产：** 留存旧 SQL、Schema、样例输入、基准输出和业务定义。
-2. **AI 生成：** 生成兼容 Snowflake 的 SQL 和明确的新旧字段映射建议。
-3. **人工审核：** 检查关联键、类型、空值、日期、币种、退货和聚合粒度。
-4. **DEV 测试：** 在受控数据上执行已批准 SQL，不给予 AI Agent 生产环境写入权限。
-5. **结果对账：** 与旧系统基准比较，调查不一致的地方。
-6. **记录审批：** 保存提示词／模型版本、生成 SQL、人工修改、测试、审核人和批准结果。
-
-**SQL 能正常执行不等于业务迁移正确。** 必须同时验证语法和计算结果。
-
-## 6. 数据验证与验收
-
-| 检查项 | 方法 | 验收标准 |
-|---|---|---|
-| 行数 | 比较源文件、RAW 和有记录的各阶段过滤结果。 | 无主动过滤时严格一致，否则解释每个差异。 |
-| 销售额与退货 | 按相同业务定义和币种精度比较新旧月度 KPI。 | 无无法解释的金额差异。 |
-| 分组对账 | 按月份 × 地区，并在可用时按品类比较。 | 无未解释的分组差异；仅总额一致不足以证明正确。 |
-| 数据质量 | 测试必填字段、唯一键、有效类型／日期／金额和引用完整性。 | 约定的关键测试通过，异常被记录。 |
-| API 一致性 | 使用相同筛选条件比较 API 与已批准 MART 查询。 | 两者数值一致。 |
-
-保留源数据快照、字段映射、SQL 版本及测试证据。不能为了强行让 KPI 一致而悄悄删除异常记录。
-
-## 7. 安全、治理与成本
-
-- AWS IAM 和 Snowflake 遵循最小权限原则；Spring Boot API 只读已批准的 MART 数据。
-- 不向 GitHub 提交 AWS 凭证、Snowflake 密钥、私钥、密码、`.env` 文件或真实患者／客户数据。
-- 演示优先使用合成或脱敏数据。使用真实个人或健康信息前，先确认比赛规则及适用隐私义务。
-- 设置 AWS 成本告警，合理配置 Snowflake Warehouse 并开启自动暂停，避免不必要的常驻服务。
-- 除非主办方要求全部上云，否则 MVP 可以在本地运行 Java 后端与前端。
-
-## 8. 实施顺序与当前状态
-
-| 步骤 | 团队行动 | 完成证据 |
-|---|---|---|
-| 1 | 检查源工作表、字段、旧 SQL 和 KPI 口径。 | 数据字典与旧系统基准 |
-| 2 | 确认负责人、架构和 API 响应 Schema。 | 架构图与接口契约 |
-| 3 | 将一份数据上传 S3 并导入 Snowflake RAW。 | 导入日志与行数检查 |
-| 4 | AI 转换并审核一段旧 SQL，建立 STAGING／MART。 | SQL 与 AI 转换记录 |
-| 5 | 按月份和地区对账销售额。 | 验证报告 |
-| 6 | 用 Spring Boot 只读接口连接最小 Dashboard。 | 端到端可运行演示 |
-| 7 | 整理证据、已知限制与迁移手册。 | 可复现的交付包 |
-
-**当前实施状态：** 仓库中已有候选 Excel 文件和规划文档。以下任务尚未核实为已完成：
-
-
-- [ ] 从 S3 导入一份数据到 Snowflake RAW。
-- [ ] 审核一段 AI 转换的 SQL 及字段映射。
-- [ ] 完成新旧 KPI 对账。
-- [ ] 实现并演示 Spring Boot API 与 Dashboard。
-- [ ] 发布迁移验证证据与文档。
-
-
+> **执行说明：** 各角色的具体分级任务与验收证据见上文 `doc/` 中对应的中英文 README；根目录文档定义团队统一架构，不表示任一功能已经实施。
