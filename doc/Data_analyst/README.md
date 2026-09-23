@@ -1,99 +1,62 @@
-# Data Analyst — Responsibilities and Tiered Delivery Requirements
+# Data Analyst
 
-[English](README.md) · [简体中文](README_CN.md) · [Project overview](../../README.md)
+[English](README.md) · [简体中文](README_CN.md) · [Project overview](../../README.md) · [Architecture diagram](../aws-python-architecture.html)
 
-> **Project:** Datathon Use Case 4 — AI-Assisted Legacy System Migration  
-> **Stack:** Python + SQL + Amazon S3 + Snowflake + Streamlit (no mandatory Java, Spring Boot or separate API).  
-> **Status:** Requirements and acceptance criteria, not a claim of implementation.
+> **Stack:** Python + DuckDB locally; Amazon S3 + AWS Glue Data Catalog + Amazon Athena + Streamlit on AWS online.
 
-## 1. Role ownership and boundaries
+## Ownership
 
-**Mission:** Define the business meaning of the migrated report, independently calculate the legacy baseline, and specify or implement an understandable Streamlit dashboard.
+Own KPI semantics, the independent business baseline, dashboard requirements and business sign-off. If assigned as Streamlit owner, deliver working Python code; a wireframe alone is not an implemented dashboard.
 
-**Boundary:** Own KPI semantics and business sign-off. Streamlit coding is assigned to a named person—this may be the analyst if they can code Python, but a wireframe alone is not a working UI. Independent technical reconciliation belongs to Data Scientist.
+## Phase 1 — Local Prototype
 
-## 2. Skill levels and delivery policy
+**Tasks**
 
-**Minimum** is mandatory MVP work and suits contributors completing scoped tasks with guidance; **Standard** includes Minimum and suits independent implementation/testing; **Advanced** includes both and suits contributors handling automation, recovery and complex design. Levels guide allocation, not personal ranking.
+- Define monthly sales by region: date field, currency, returns, exclusions, aggregation grain and rounding.
+- Inspect the real source with the Data Engineer and record a data dictionary plus business exceptions.
+- Calculate and freeze a source/legacy baseline independently of the candidate transformation.
+- Define Streamlit fields, filters, freshness label, validation state and empty/error behaviour.
 
-### Minimum Delivery
+**Evidence and exit criteria**
 
-**Experience fit:** Can inspect available source data, define a single reproducible KPI and specify a minimal user-facing report.
+- Approved KPI definition, sample calculations, baseline file and dashboard acceptance criteria.
+- DuckDB output is reviewed against the baseline and material differences are resolved or documented.
 
-**Project tasks:**
+## Phase 2 — AWS MVP
 
-- Inspect actual source columns and define sales amount, reporting month/timezone, region, currency, returns and missing-value rules without inventing unavailable attributes.
-- Compute and save a source/legacy baseline independently of the Snowflake candidate MART.
-- Specify one Streamlit KPI card, month/region filters, one chart, freshness label and a visible published-batch/validation status.
-- Agree with the Team Lead who codes Streamlit and give them the required published MART fields and display semantics.
+**Tasks**
 
-**Required artifacts:**
+- Confirm Athena candidate and published results preserve the agreed business meaning.
+- Build or support the Python Streamlit app on App Runner with month/region filters.
+- Show the published batch/version, data refresh time and latest validation state.
+- Perform business UAT and withhold sign-off if the dashboard reads candidate or unvalidated data.
 
-- `docs/data-dictionary.md` and `docs/legacy-baseline.md` with source reference, metric formula, assumptions and computed value.
-- `docs/dashboard-spec.md` or an equivalent wireframe with a named Streamlit implementer and acceptance cases.
+**Evidence and exit criteria**
 
-**Acceptance criteria:**
+- UAT record and business sign-off for the published Athena view.
+- AWS dashboard shows agreed KPI, filters, freshness and validation status using read-only access.
 
-- A second person can reproduce the baseline from the cited source and defined date/currency/return rules.
-- The named UI developer can build a basic dashboard without guessing field names, KPI meaning or permitted data status.
+## Phase 3 — Production-ready
 
-### Standard Delivery
+**Tasks**
 
-**Experience fit:** Can translate business rules into reproducible analytics and implement or test a dependable Streamlit experience.
+- Add trend, exception and migration-readiness views only when they support a named decision.
+- Define threshold ownership, notification recipients and business response to stale/failed data.
+- Periodically review definitions and dashboard relevance as sources change.
 
-**Project tasks:**
+**Evidence and exit criteria**
 
-- Expand KPI definitions to permitted dimensions, return categories, time boundaries and excluded records; maintain a versioned baseline.
-- Work with the named Streamlit owner to implement filters, chart labels, empty/loading/error states, and clearly separated current published versus failed latest run.
-- Compare old/new reports by month and region and write business acceptance tests for returns, missing region and no-sales periods.
-- Ensure Streamlit uses a read-only published MART query; never surface candidate or failed batch totals as verified KPIs.
+- Decision-to-visual mapping, reviewed thresholds and operational response guide.
+- Changes to KPI meaning require versioned approval and regression evidence.
 
-**Required artifacts:**
+## Inputs and handoffs
 
-- Versioned KPI dictionary and side-by-side old/new report comparison.
-- Tested Streamlit MVP (if assigned) or documented UI tests signed off against the named implementer’s work.
+- Inputs: source fields/anomalies → Data Engineer; candidate/published query surface → Analytics Engineer/Architect.
+- Outputs: KPI definition and baseline → Analytics Engineer/Data Scientist; UAT/sign-off → Architect; display contract → Streamlit owner.
 
-**Acceptance criteria:**
+## Shared acceptance rules
 
-- Filters and display agree with the KPI baseline and published MART under the same business rules.
-- The UI labels stale/failed/empty states honestly and does not silently substitute the newest unverified candidate.
-
-### Advanced Delivery
-
-**Experience fit:** Can design business-facing migration-readiness reporting and assess the impact of data discrepancies.
-
-**Project tasks:**
-
-- Design drill-down into supported dimensions, validation trends, last successful batch and unresolved exception counts.
-- Define business materiality thresholds separately from hard technical data-integrity gates; document approvals for any changed KPI definition.
-- Lead a stakeholder walkthrough of known reporting limitations, freshness SLAs and fallback to prior validated/legacy reporting.
-
-**Required artifacts:**
-
-- Migration-readiness dashboard or specification and stakeholder review evidence.
-- Metric change log, discrepancy impact notes and freshness/acceptance policy.
-
-**Acceptance criteria:**
-
-- Users can distinguish passed, blocked and stale data without concealment of unresolved differences.
-- Business rule changes require versioned sign-off rather than retroactively changing the independent baseline.
-
-## 3. Inputs and handoffs
-
-**Inputs required from others:**
-
-- Actual source columns, old reports and business context.
-- Published MART query surface and validation status → Analytics Engineer, Data Scientist and Architect.
-
-**Outputs and recipients:**
-
-- KPI dictionary and baseline → Analytics Engineer and Data Scientist.
-- Streamlit specification, required columns/filters, business acceptance → named UI owner and Architect.
-
-## 4. Shared project acceptance constraints
-
-- Preserve lineage for source snapshots, run batches and transformations; do not silently drop invalid records.
-- Publish a candidate MART only after independent KPI and critical quality checks pass; a failed run must not replace a prior validated version.
-- Human-review AI-generated SQL and test only in DEV/candidate data; do not use the same AI output as the sole independent ground truth.
-- Streamlit reads only published data; if none has passed validation, show "No validated data available."
-- Do not mark proposed features, unexecuted tests or optional Advanced work as completed.
+- The independent baseline is not generated by the same AI transformation under test.
+- The dashboard clearly distinguishes validated, failed and unavailable data.
+- Streamlit contains presentation logic, not hidden bulk transformation logic.
+- Optional Phase 3 visualisations do not delay the Phase 2 MVP.

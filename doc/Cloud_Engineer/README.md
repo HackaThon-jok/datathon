@@ -1,98 +1,63 @@
-# Cloud Engineer — Responsibilities and Tiered Delivery Requirements
+# Cloud Engineer
 
-[English](README.md) · [简体中文](README_CN.md) · [Project overview](../../README.md)
+[English](README.md) · [简体中文](README_CN.md) · [Project overview](../../README.md) · [Architecture diagram](../aws-python-architecture.html)
 
-> **Project:** Datathon Use Case 4 — AI-Assisted Legacy System Migration  
-> **Stack:** Python + SQL + Amazon S3 + Snowflake + Streamlit (no mandatory Java, Spring Boot or separate API).  
-> **Status:** Requirements and acceptance criteria, not a claim of implementation.
+> **Stack:** Python + DuckDB locally; Amazon S3 + AWS Glue Data Catalog + Amazon Athena + Streamlit on AWS online.
 
-## 1. Role ownership and boundaries
+## Ownership
 
-**Mission:** Provide a secure, cost-aware S3 and Snowflake development environment that the data pipeline can actually use.
+Own AWS foundations, IAM, cost controls, deployment paths and cloud-operability handoffs. Do not own KPI definitions, transformation correctness or dashboard business design.
 
-**Boundary:** Own cloud infrastructure, access and connection handoffs; do not take ownership of KPI definitions, business SQL correctness or Streamlit UI. A separate backend server is not required.
+## Phase 1 — Local Prototype
 
-## 2. Skill levels and delivery policy
+**Tasks**
 
-**Minimum** is mandatory MVP work and suits contributors completing scoped tasks with guidance; **Standard** includes Minimum and suits independent implementation/testing; **Advanced** includes both and suits contributors handling automation, recovery and complex design. Levels guide allocation, not personal ranking.
+- Confirm the AWS account, Region, service quotas, budget and resource naming convention.
+- Design least-privilege roles for pipeline write, Athena development, Streamlit read-only access and administration.
+- Document local AWS credential-chain usage without storing access keys in the repository.
+- Define S3 prefixes, Glue database/table names, Athena workgroup and App Runner/ECR names.
 
-### Minimum Delivery
+**Evidence and exit criteria**
 
-**Experience fit:** Can configure basic cloud resources with guided use of AWS and Snowflake consoles.
+- Reviewed resource plan, IAM matrix, budget owner and safe local configuration guide.
+- No secret or sensitive dataset is committed to Git.
 
-**Project tasks:**
+## Phase 2 — AWS MVP
 
-- Create one project S3 bucket/prefix and a Snowflake DEV database/warehouse; confirm event and account constraints first.
-- Configure scoped IAM permissions, Snowflake storage integration and an external stage that can list/read the designated raw prefix.
-- Give each contributor the minimum access needed; ensure no passwords, keys or patient/customer data are committed to GitHub.
+**Tasks**
 
-**Required artifacts:**
+- Create encrypted, non-public S3 storage for RAW/STAGING/MART and Athena results.
+- Configure Glue Data Catalog, Athena workgroup limits, query-result location and scoped IAM roles.
+- Provide ECR and App Runner deployment for Streamlit with read-only Athena/S3 permissions.
+- Enable AWS Budgets and document teardown plus connection troubleshooting.
 
-- `infra/setup.md` — resource names, safe configuration procedure and permission handoff (no secrets).
-- Evidence that an authorised test file in S3 can be read through the Snowflake external stage.
+**Evidence and exit criteria**
 
-**Acceptance criteria:**
+- Data Engineer can write only the agreed prefixes and query the development workgroup.
+- Streamlit can query the published view but cannot alter RAW, STAGING or MART.
+- A negative-permission test and a successful end-to-end connection test are recorded.
 
-- Data Engineer can reach the agreed S3 location and Snowflake stage with assigned access.
-- The environment works without publishing credentials in the repository.
+## Phase 3 — Production-ready
 
-### Standard Delivery
+**Tasks**
 
-**Experience fit:** Can independently manage access, environment consistency and basic cloud operability.
+- Define resources with reviewed IaC and separate development from published access.
+- Configure EventBridge, Step Functions, CloudWatch logs/alarms and Secrets Manager where secrets are unavoidable.
+- Exercise access revocation, credential rotation, S3 object recovery and environment recreation.
 
-**Project tasks:**
+**Evidence and exit criteria**
 
-- Separate DEV from published-data access where feasible; give Streamlit a read-only identity limited to the published MART query surface.
-- Set AWS budget alerts, an appropriate Snowflake warehouse with auto-suspend, and a written cost owner/check schedule.
-- Document access revocation, object retention/versioning options, connection troubleshooting and a safe environment recreation procedure.
-- Collect access/load errors and service-availability evidence sufficient for the pipeline owner to distinguish transient failures from permission errors.
+- IaC, monitoring dashboard/alarms, cost controls and recovery runbook are versioned.
+- Another authorised member can recreate the non-secret environment and complete a recovery exercise.
 
-**Required artifacts:**
+## Inputs and handoffs
 
-- `infra/access-matrix.md`, cost-control instructions and repeatable DEV setup steps.
-- Read-only dashboard identity and one documented negative-permission test.
+- Inputs: data size/format, pipeline actions, dashboard query contract, budget and retention requirements.
+- Outputs: S3 prefixes, Glue database, Athena workgroup and IAM roles → Data Engineer; App Runner/ECR and read-only role → Streamlit owner; cost/security status → Team Lead.
 
-**Acceptance criteria:**
+## Shared acceptance rules
 
-- A dashboard credential cannot write RAW, STAGING or MART and can read only approved published objects.
-- Another member can reproduce the environment using documentation without sharing personal admin credentials.
-
-### Advanced Delivery
-
-**Experience fit:** Can deliver reproducible cloud infrastructure and operational recovery controls.
-
-**Project tasks:**
-
-- Express agreed infrastructure in Terraform or an equivalent reviewed IaC approach; avoid unapproved destructive changes.
-- Configure targeted monitoring/alerts for failed loads, unauthorised access and material cloud cost changes.
-- Exercise credential rotation, source-object recovery and access restoration; explain limitations of S3 versioning and warehouse recovery separately.
-
-**Required artifacts:**
-
-- Reviewed IaC plus a monitoring and recovery runbook.
-- Recorded failure/restore exercise and cost/security risk assessment.
-
-**Acceptance criteria:**
-
-- An authorised member can recreate the non-secret configuration and verify the S3-to-Snowflake path.
-- Relevant alerts and recovery procedures have been exercised with evidence, not merely listed as future work.
-
-## 3. Inputs and handoffs
-
-**Inputs required from others:**
-
-- Proposed data flow, estimated dataset size, cloud budget and team access requirements.
-- Required source file format and Snowflake RAW load plan from Data Engineer.
-
-**Outputs and recipients:**
-
-- Bucket/prefix, storage integration, external stage and scoped access instructions → Data Engineer.
-- Read-only published-MART access configuration → Streamlit owner; resource/cost status → Team Lead.
-
-## 4. Shared project acceptance constraints
-
-- Preserve lineage for source snapshots, run batches and transformations; do not silently drop invalid records.
-- Publish a candidate MART only after independent KPI and critical quality checks pass; a failed run must not replace a prior validated version.
-- Human-review AI-generated SQL and test only in DEV/candidate data; do not use the same AI output as the sole independent ground truth.
-- Streamlit reads only published data; if none has passed validation, show "No validated data available."
-- Do not mark proposed features, unexecuted tests or optional Advanced work as completed.
+- Online services stay within AWS; DuckDB remains a local pre-online test dependency.
+- Public S3 access is blocked and data is encrypted.
+- Athena scan cost is constrained with workgroups, Parquet and partitioning.
+- Proposed Phase 3 controls are not labelled complete until exercised.

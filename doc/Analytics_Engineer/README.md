@@ -1,100 +1,62 @@
-# Analytics Engineer — Responsibilities and Tiered Delivery Requirements
+# Analytics Engineer
 
-[English](README.md) · [简体中文](README_CN.md) · [Project overview](../../README.md)
+[English](README.md) · [简体中文](README_CN.md) · [Project overview](../../README.md) · [Architecture diagram](../aws-python-architecture.html)
 
-> **Project:** Datathon Use Case 4 — AI-Assisted Legacy System Migration  
-> **Stack:** Python + SQL + Amazon S3 + Snowflake + Streamlit (no mandatory Java, Spring Boot or separate API).  
-> **Status:** Requirements and acceptance criteria, not a claim of implementation.
+> **Stack:** Python + DuckDB locally; Amazon S3 + AWS Glue Data Catalog + Amazon Athena + Streamlit on AWS online.
 
-## 1. Role ownership and boundaries
+## Ownership
 
-**Mission:** Convert real legacy reporting logic with AI assistance and create transparent, tested Snowflake STAGING and candidate MART transformations.
+Own reviewable transformations from RAW through STAGING to candidate MART, including the AI-assisted conversion record. Do not redefine business KPIs or approve your own output as the independent baseline.
 
-**Boundary:** Own SQL semantics, transformations and conversion records; Data Analyst approves business definitions and Data Scientist independently tests target results. Do not execute unreviewed AI SQL against published data.
+## Phase 1 — Local Prototype
 
-## 2. Skill levels and delivery policy
+**Tasks**
 
-**Minimum** is mandatory MVP work and suits contributors completing scoped tasks with guidance; **Standard** includes Minimum and suits independent implementation/testing; **Advanced** includes both and suits contributors handling automation, recovery and complex design. Levels guide allocation, not personal ranking.
+- Preserve one real legacy SQL/report definition and use AI to draft an equivalent Python/SQL transformation.
+- Human-review joins, NULLs, dates, currency, returns, grouping and destructive operations.
+- Build DuckDB STAGING and candidate MART models using documented source-to-target mappings.
+- Add local tests for grain, uniqueness, required fields, duplicate handling and the selected KPI.
 
-### Minimum Delivery
+**Evidence and exit criteria**
 
-**Experience fit:** Can read a source query/report definition, adapt SQL in DEV and explain the resulting KPI grain.
+- Original logic, prompt/model, AI output, human edits, reviewer and test result are recorded.
+- DuckDB candidate MART matches the independently supplied KPI baseline or documents every difference.
 
-**Project tasks:**
+## Phase 2 — AWS MVP
 
-- Inventory at least one real legacy query or original reporting transformation; if none exists, clearly label the limitation rather than fabricating legacy SQL.
-- Use AI to draft an equivalent Snowflake query; manually review joins, NULLs, dates, currency, returns and grouping.
-- Build one STAGING transformation and an isolated candidate MART computing the agreed monthly-sales-by-region KPI; preserve RAW.
-- Record the original logic, AI prompt/output, human changes and test outcome before handing the result to Data Scientist.
+**Tasks**
 
-**Required artifacts:**
+- Port the approved model to Athena using portable SQL plus small, documented dialect adapters where required.
+- Materialise or expose isolated candidate data without changing the published view.
+- Compare DuckDB and Athena schema, row count and month × region KPI using the same fixture/snapshot.
+- Publish only through the controlled view/version switch after validation approval.
 
-- `sql/legacy/`, `sql/staging/`, `sql/mart/` and `docs/source-to-target.md`.
-- `docs/ai-conversion-log.md` with a human-reviewed conversion example and candidate KPI query.
+**Evidence and exit criteria**
 
-**Acceptance criteria:**
+- Versioned Athena SQL, mapping document and local/cloud contract-test results.
+- Candidate failure cannot alter the published query result.
 
-- The reviewed SQL executes in DEV/candidate data and the KPI respects documented source definitions.
-- The conversion log distinguishes actual old SQL from reconstructed report logic and does not claim untested equivalence.
+## Phase 3 — Production-ready
 
-### Standard Delivery
+**Tasks**
 
-**Experience fit:** Can independently maintain reusable analytical models and detect common SQL transformation errors.
+- Add reusable model conventions, lineage, partition strategy and Athena scan-cost optimization.
+- Test schema evolution, late-arriving data and model replay.
+- Use AI-generated test ideas only as reviewed drafts; preserve deterministic expected outcomes.
 
-**Project tasks:**
+**Evidence and exit criteria**
 
-- Document source-to-target type, key and business-grain mappings and each rule for rejected/changed records.
-- Add executable tests for unique grain, non-null critical fields, valid values, joins and aggregation invariants; use dbt only if helpful.
-- Support group-level month × region reconciliation and resolve or explicitly record mismatches found by independent validation.
-- Keep candidate transformations separate from published objects; promote only after required checks and documented approval.
+- Model documentation, lineage, performance/cost evidence and recovery tests are maintained.
+- A model change can be reviewed, tested, deployed and rolled back without corrupting the published result.
 
-**Required artifacts:**
+## Inputs and handoffs
 
-- Tested, versioned staging/mart SQL, mapping dictionary and test result log.
-- Expanded AI conversion/review log and grouped-KPI comparison support.
+- Inputs: RAW/STAGING schema and lineage → Data Engineer; KPI definitions and baseline → Data Analyst.
+- Outputs: candidate MART, SQL/Python artifacts, mapping and AI conversion record → Data Scientist and Architect.
 
-**Acceptance criteria:**
+## Shared acceptance rules
 
-- Critical tests pass or produce explicit blocking failures; no silent filtering masks a mismatch.
-- Data Scientist can independently reproduce monthly/regional candidate figures from the documented SQL and mappings.
-
-### Advanced Delivery
-
-**Experience fit:** Can design governed SQL promotion and assess a reproducible AI conversion workflow.
-
-**Project tasks:**
-
-- Detect upstream schema/grain changes, preserve source-to-MART lineage and document affected downstream metrics.
-- Prototype an assistant that proposes SQL and draft tests but requires human approval and only runs accepted statements in DEV.
-- Measure first-pass conversion correctness and review effort over a clearly enumerated set of real transformations with a stated denominator.
-- Document SQL/model rollback and publication compatibility checks.
-
-**Required artifacts:**
-
-- Lineage and compatibility checks, controlled AI conversion prototype or reproducible workflow.
-- Scoped AI evaluation and model release/rollback evidence.
-
-**Acceptance criteria:**
-
-- No AI-generated query is promoted merely because it executes; source KPI comparison and approval are required.
-- Evaluation metrics, lineage and rollback steps can be reproduced from stored evidence.
-
-## 3. Inputs and handoffs
-
-**Inputs required from others:**
-
-- RAW schema and batch/source metadata → Data Engineer.
-- Original report/SQL, KPI formula and independent baseline → Data Analyst.
-
-**Outputs and recipients:**
-
-- Reviewed SQL, field mapping, STAGING and candidate MART → Data Scientist and Streamlit owner after release.
-- Transformation tests, AI prompt/edit log and discrepancy explanations → Solution Architect.
-
-## 4. Shared project acceptance constraints
-
-- Preserve lineage for source snapshots, run batches and transformations; do not silently drop invalid records.
-- Publish a candidate MART only after independent KPI and critical quality checks pass; a failed run must not replace a prior validated version.
-- Human-review AI-generated SQL and test only in DEV/candidate data; do not use the same AI output as the sole independent ground truth.
-- Streamlit reads only published data; if none has passed validation, show "No validated data available."
-- Do not mark proposed features, unexecuted tests or optional Advanced work as completed.
+- DuckDB and Athena may use small syntax adapters, but their data contracts and business results must agree.
+- AI output is always reviewed and tested.
+- Candidate and published data remain separate.
+- Phase 3 optimization follows correctness, not the reverse.

@@ -1,197 +1,155 @@
 # Datathon Use Case 4 | AI-Assisted Legacy System Migration
 
-[English](README.md) · [简体中文](README_CN.md)
+[English](README.md) · [简体中文](README_CN.md) · [Interactive architecture diagram](doc/aws-python-architecture.html)
 
-> **Status:** Proposed team architecture and delivery plan; listed features have not yet been implemented.  
-> **Target:** Migrate legacy health-supplies sales data and reporting to **Snowflake on AWS**, demonstrate AI-assisted SQL conversion, and independently validate business results.  
-> **MVP stack:** Python + SQL + Amazon S3 + Snowflake + Streamlit. **Spring Boot, Java, a separate REST API and a JavaScript frontend are not prerequisites.**
+> **Status:** Target architecture and delivery plan; a listed item is not complete until its acceptance evidence exists.
+>
+> **Direction:** Python is the common development base, DuckDB supports local testing, and the online platform runs entirely on AWS.
+>
+> **Core stack:** Python + DuckDB (local) + Amazon S3 + AWS Glue Data Catalog + Amazon Athena + Streamlit on AWS App Runner.
 
-## 1. Purpose and scope
+## 1. Goal and scope
 
-The main outcome is a **verifiable migration**, not merely a dashboard containing numbers. The team must cover five outcomes:
+The goal is a verifiable migration of legacy health-supplies sales data and reporting, including an AI-assisted conversion example and independent reconciliation. The MVP produces monthly sales by region from one confirmed source dataset.
 
-| Outcome | Minimum supporting evidence |
-|---|---|
-| Analyse legacy assets | Source inventory, field definitions, existing SQL/report logic and KPI rules |
-| Design the target architecture | Data-flow diagram, component ownership, access boundaries and handoffs |
-| Demonstrate AI-assisted conversion | Original SQL/report logic, generated Snowflake SQL, human modifications and review record |
-| Validate and test | Source-to-RAW counts, legacy-versus-target KPI comparison, data-quality and failure records |
-| Document the migration | Source-to-target mapping, rerun instructions, validation results and known limitations |
+The same three delivery phases apply to the project and every role:
 
-**MVP use case:** Produce a monthly-sales-by-region report from one confirmed source dataset. The Data Analyst must first define reporting date, currency, handling of returns, aggregation grain and an independent legacy/source baseline. Existing Excel files in this repository are **candidate sources**: inspect actual sheets, columns and semantics and verify whether usable legacy SQL exists before claiming a migration has occurred.
+| Phase | Purpose | Exit condition |
+|---|---|---|
+| **Phase 1 — Local Prototype** | Build and test quickly with Python and DuckDB | A repeatable local run produces the agreed KPI and validation report |
+| **Phase 2 — AWS MVP** | Publish the validated flow on S3, Glue and Athena; serve it through Streamlit | DuckDB and Athena outputs reconcile and the AWS dashboard reads only validated data |
+| **Phase 3 — Production-ready** | Add automation, observability, recovery, security and IaC | Scheduled runs, failure recovery, monitoring and deployment controls are exercised |
 
-**Scope boundary:** Snowflake remains the target data warehouse; S3 stores raw objects rather than executing SQL. Python handles extraction, batch control, verification and the dashboard connection. Heavy joins, cleaning and aggregation should run in Snowflake SQL. Consider FastAPI later only if a standalone API or multiple clients are actually needed.
+Phase 1 and Phase 2 are required for the datathon MVP. Phase 3 is an extension, not a reason to delay a working end-to-end result.
 
-## 2. Target architecture
+## 2. Architecture
 
-```mermaid
-flowchart TD
-    A["Legacy database / source workbooks"] --> B["Python: inspect, export, batch manifest"]
-    B --> C["Amazon S3: raw snapshot + manifest"]
-    C -->|"External stage + COPY INTO"| D["Snowflake RAW: source batches"]
-    D --> E["Snowflake STAGING: normalization + quality"]
-    E --> F["Candidate MART: business metrics"]
-    A --> K["Independent legacy/source baseline"]
-    F --> V{"Validation Gate: counts, quality, KPI parity"}
-    K --> V
-    V -->|Pass / approval| P["Published, validated MART version"]
-    V -->|Fail| Q["FAILED: preserve evidence and prior published version"]
-    P --> H["Streamlit: KPIs + migration status"]
-    L["Original SQL / reporting rules"] --> AI["AI-assisted conversion + human review"]
-    AI --> E
-    V --> R["Reconciliation report + run logs + documentation"]
-```
+Open the [interactive architecture diagram](doc/aws-python-architecture.html) for theme switching, search, tracing and export. Its editable source is [doc/aws-python-architecture.json](doc/aws-python-architecture.json).
+
+The main data path is:
+
+    Legacy database / Excel
+      → Python extraction, transformation, manifest and validation
+      → DuckDB local tests
+      → Amazon S3 RAW / STAGING / MART Parquet
+      → AWS Glue Data Catalog
+      → Amazon Athena candidate MART
+      → Validation Gate comparing DuckDB and Athena
+      → Published Athena view
+      → Streamlit on AWS App Runner
+
+Phase 3 adds EventBridge, Step Functions, CloudWatch, IAM, Secrets Manager and infrastructure as code around this path.
+
+### Component boundaries
 
 | Component | Responsibility | Boundary |
 |---|---|---|
-| Legacy source | Original data, report logic and independent baseline | Do not change the baseline simply to force agreement |
-| Python | Inspect/export data, batch manifest, orchestration and validation | Do not turn Streamlit into a bulk ETL engine |
-| Amazon S3 | Preserve source snapshots and manifests | Object storage, not the SQL engine |
-| Snowflake RAW | Imported records and source/batch identifiers | Do not silently discard invalid records |
-| Snowflake STAGING | Type conversion, mapping and documented cleaning | Record changed or rejected records and their rules |
-| Candidate MART | Calculate metrics before release | Must not overwrite the version currently shown to users |
-| Validation Gate | Check completeness, quality and KPI parity | Unexplained critical differences block publication |
-| Streamlit | Read published MART and report validation status | Server-side secrets only; never commit credentials |
+| Python package | Extraction, transformations, manifests, validation and orchestration entry points | Business logic must not live only inside Streamlit |
+| DuckDB | Fast local SQL execution and pre-online contract tests | It is not the online production query service |
+| Amazon S3 | Immutable source snapshots and versioned RAW/STAGING/MART Parquet data | Do not overwrite historical source evidence |
+| AWS Glue Data Catalog | Table, schema and partition metadata | It does not transform or validate business results |
+| Amazon Athena | Online candidate and published query surfaces | Candidate output is not published until validation passes |
+| Streamlit on App Runner | Read-only dashboard and migration status | It reads only the published Athena surface |
+| AWS operations services | Scheduling, workflow state, logs, secrets and infrastructure definition | Added in Phase 3 after the AWS MVP works |
 
-**Deployment:** For the MVP, Python scripts and Streamlit may run on a team development machine while S3 and Snowflake run in the cloud. Do not require every component to be hosted on AWS unless the event rules mandate it.
+## 3. Local-to-AWS development contract
 
-## 3. Trustworthy and resilient data pipeline
+The repository uses one Python package and explicit configuration profiles rather than separate local and cloud implementations:
 
-A **trustworthy pipeline** preserves provenance, uses reviewable transformations, reconciles independently against source business results, and never treats unvalidated output as released data. **Resilience** means failures are observable and contained, retry is safe, and previously validated output stays available.
+- **local:** local fixtures or approved snapshots, DuckDB and local artifact paths.
+- **aws-dev:** S3, Glue and Athena candidate tables, with credentials supplied by the AWS SDK credential chain.
+- **aws-prod:** published resources and read-only dashboard access; introduced only with Phase 3 controls.
 
-### 3.1 Batches, run states and lineage
+Transformations should use a portable SQL subset where practical. When DuckDB and Athena syntax must differ, keep small engine-specific SQL adapters and test them against the same input, schema, row-count and KPI contracts. Matching query text is not required; matching agreed results is.
 
-Give every execution a unique `run_id`; identify source content with a stable file identifier or hash and record its S3 key, extraction time, expected row count and `batch_id`. Use explicit states:
+No AWS access key, secret, connection string or personal/health data belongs in Git. Use environment configuration locally and IAM roles plus AWS Secrets Manager online.
 
-```text
-PENDING → INGESTING → TRANSFORMING → VALIDATING → PUBLISHED
-               ↘ FAILED ←───────────────────↙
-```
+## 4. Data zones, lineage and release
 
-A run may fail at any step. Keep at least `run_id`, source object, start/end times, status, loaded row count, error reason and validation outcome. Mark `PUBLISHED` **only after checks and approval actually succeed**. A retry receives a new run record and retains evidence of the prior failure.
+Recommended S3 layout:
 
-Example S3 key layout (proposal only; no real bucket is implied):
+    s3://<project-bucket>/raw/<dataset>/<batch_id>/source.<csv|parquet>
+    s3://<project-bucket>/raw/<dataset>/<batch_id>/manifest.json
+    s3://<project-bucket>/staging/<dataset>/batch_id=<batch_id>/*.parquet
+    s3://<project-bucket>/mart/<dataset>/candidate/run_id=<run_id>/*.parquet
+    s3://<project-bucket>/mart/<dataset>/published/version=<version>/*.parquet
+    s3://<project-bucket>/athena-results/
 
-```text
-s3://<project-bucket>/raw/<batch_id>/sales.csv
-s3://<project-bucket>/raw/<batch_id>/manifest.json
-s3://<project-bucket>/rejected/<batch_id>/invalid_records.csv
-```
+Each run receives a unique run_id; each source snapshot has a batch_id, stable source identifier or SHA-256 hash, row count, extraction time and S3 key. Use these states consistently:
 
-Keep original files instead of overwriting old snapshots. Enable S3 versioning where appropriate. The manifest records origin, expected row count and a content hash such as SHA-256 to support traceability and duplicate-batch detection.
+    PENDING → INGESTING → TRANSFORMING → VALIDATING → PUBLISHED
+                   ↘ FAILED ←───────────────────↙
 
-### 3.2 Idempotency and safe recovery
+A retry creates a new run record and never erases the failed evidence. Publication changes a controlled view or version pointer only after critical checks and owner approval. A failed candidate cannot replace the last validated version.
 
-- **Minimum:** Check source/batch identifiers before loading; inspect RAW state before retry; do not blindly append a previously loaded batch to the published MART.
-- **Standard:** Make reruns non-duplicating with a manifest and a defined deduplicate/replace strategy; bound retries and use backoff for transient network or connection errors.
-- **Advanced:** Add stage-level recovery, a published-version pointer, rollback and run monitoring.
+## 5. AI-assisted conversion and validation
 
-Snowflake `COPY INTO` load history can help avoid reloading files, but **does not establish end-to-end idempotency**: changed files, forced loads, source-level duplicate business events and repeated downstream aggregations all require separate treatment. Invalid CSV, logically incorrect SQL and unmatched KPIs are not fixed by blind retry.
+1. Preserve the original SQL or human-approved report definition, source schema and business rules.
+2. Use AI to draft Python/SQL transformations and source-to-target mappings.
+3. Human-review joins, NULLs, dates, currencies, returns, grouping, permissions and destructive operations.
+4. Run the draft first against controlled local DuckDB data.
+5. Run the approved AWS form against an isolated Athena candidate dataset.
+6. Compare source counts, required fields, monthly/region KPI values and documented quality rules.
+7. Record the prompt/model, generated output, human edits, test evidence and reviewer.
 
-### 3.3 Validation Gate
+AI-generated migration logic cannot also be the only ground truth. The independent baseline must come from the legacy report or a separately computed, business-approved result.
 
-1. Load and transform data into an **isolated candidate MART** rather than modifying the published result in place.
-2. Check source/RAW counts, required fields, month-by-region KPI values and agreed quality rules against an independently captured baseline.
-3. Publish only when critical checks pass and the responsible person approves. A manual release is sufficient for the MVP; automation belongs in Standard.
-4. If validation fails, retain candidate data and error evidence while preserving the **last successfully published version**. If none exists, show "No validated data available."
-5. Streamlit must label the published batch and data-refresh time, and may show the latest failed run without presenting it as current verified data.
+## 6. Roles and phase ownership
 
-A pipeline that writes into the live MART *before* running its checks does not implement a meaningful release gate. Candidate and published data need separate query entry points. A candidate table and a controlled versioned view or publication record are sufficient initial choices; release must avoid exposing a partially updated result.
+Every linked role has a separate English and Chinese README using the same three phases.
 
-## 4. AI-assisted migration: generate, review, reconcile
-
-1. Preserve the unmodified legacy SQL/report definition, source schema, business rules and independent baseline.
-2. Ask AI to draft Snowflake-compatible SQL and source-to-target mappings.
-3. Review join keys, NULL handling, dates, currencies, return rules, aggregation grain, permissions and destructive SQL risks.
-4. Execute approved statements only in DEV or against controlled candidate data.
-5. Reconcile legacy and target outputs using the same definitions; record the prompt/model version, output, human edits, test evidence and reviewer.
-
-**Do not allow AI to generate both the migration logic and the only supposed ground truth, then call matching outputs a success.** Use results from the source system or an independently computed, human-approved business baseline.
-
-## 5. Delivery levels and team roles
-
-**Minimum Delivery** is the mandatory MVP contribution for each role. **Standard Delivery** adds dependable reruns, automation and deeper reconciliation. **Advanced Delivery** builds on both with recoverability, observability and reuse. These levels guide task allocation according to experience; Advanced is optional. The six roles describe responsibility areas, not necessarily six distinct people.
-
-Each role has **separate English and Chinese README files** under [`doc/`](doc/), including tasks, concrete artifacts and acceptance tests:
-
-| Role | Minimum Delivery | Standard Delivery | Advanced Delivery |
+| Role | Phase 1 — Local Prototype | Phase 2 — AWS MVP | Phase 3 — Production-ready |
 |---|---|---|---|
-| [Solution Architect](doc/Solution_Architect/README.md) | Scope, Python/SQL architecture, data flow, owners, validation gate and acceptance | Run-state/release design, contracts and integration tests | Versioned publication, rollback drills and reusable playbook |
-| [Cloud Engineer](doc/Cloud_Engineer/README.md) | S3, Snowflake DEV, least-privilege access and external stage | Environment separation, access audit, cost controls, repeatable setup | Infrastructure as code, monitoring/alerts and recovery exercises |
-| [Data Engineer](doc/Data_Engineer/README.md) | Python source inspection/export, S3 upload, RAW ingestion and count check | `batch_id`, load logs, non-duplicating reruns, bounded retry and rejected-record handling | Incremental ingestion, stage-level recovery and automated scheduling |
-| [Analytics Engineer](doc/Analytics_Engineer/README.md) | Human-reviewed AI SQL conversion and STAGING/candidate MART | Transformation tests, mappings and grouped-reconciliation support | Lineage, reusable models and controlled AI-generated test drafts |
-| [Data Analyst](doc/Data_analyst/README.md) | KPI definition, independent baseline, dashboard requirements and named Streamlit owner | Filters, grouped comparison, freshness and validation-state UX | Migration-readiness and decision-support visualisations |
-| [Data Scientist](doc/Data_Scientist/README.md) | Quality report, source/target counts and one KPI comparison | Automated tests, month-by-region reconciliation and anomaly analysis | Drift detection, scoped AI SQL evaluation and optional ML demo |
+| [Solution Architect](doc/Solution_Architect/README.md) | Scope, contracts and local architecture | AWS integration and release gate | Automated governance and recovery |
+| [Cloud Engineer](doc/Cloud_Engineer/README.md) | AWS account, naming and access plan | S3, Glue, Athena, ECR/App Runner and IAM | IaC, monitoring, secrets and recovery |
+| [Data Engineer](doc/Data_Engineer/README.md) | Python extraction, DuckDB load and manifest | S3 Parquet ingestion and catalog registration | Scheduled, idempotent and recoverable ingestion |
+| [Analytics Engineer](doc/Analytics_Engineer/README.md) | Reviewed AI conversion and local MART | Athena candidate/published models and parity tests | Reusable models, lineage and optimization |
+| [Data Analyst](doc/Data_analyst/README.md) | KPI definition, baseline and dashboard contract | Streamlit implementation and business sign-off | Operational and decision-support views |
+| [Data Scientist](doc/Data_Scientist/README.md) | Local quality and reconciliation tests | Independent DuckDB/Athena validation | Drift, anomaly and validation monitoring |
 
-**Explicit implementation owner required:** The Team Lead must name the person who actually builds the Streamlit app. That person may be the Data Analyst or another Python-capable member; defining a dashboard is not the same as coding it. All roles deliver actual code, documentation or verifiable evidence rather than plans alone.
+### Handoffs
 
-### Role handoffs
+    Cloud Engineer → Data Engineer: S3 prefixes, Glue database, Athena workgroup and IAM role
+    Data Engineer → Analytics Engineer: RAW/STAGING schema, batch/run metadata and counts
+    Data Analyst → Analytics Engineer / Data Scientist: KPI definition and independent baseline
+    Analytics Engineer → Data Scientist: candidate MART, conversion record and query artifacts
+    Data Scientist → Solution Architect: validation report, exceptions and release recommendation
+    Solution Architect → Streamlit owner: approved published view and display contract
 
-```text
-Cloud Engineer → Data Engineer: S3 key, external stage, access permissions
-Data Engineer → Analytics Engineer: RAW table, schema, source and batch metadata
-Data Analyst → Analytics Engineer / Data Scientist: KPI definition and independent baseline
-Analytics Engineer → Data Scientist: candidate MART, SQL and conversion log
-Data Scientist → Solution Architect: validation report, exceptions and release evidence
-Solution Architect → Streamlit owner: approved/published MART query and display contract
-```
+## 7. MVP acceptance
 
-## 6. End-to-end MVP acceptance
+- [ ] Confirm one usable source, the monthly-sales-by-region definition and a source/legacy baseline.
+- [ ] A clean local Python command creates the DuckDB RAW/STAGING/MART result.
+- [ ] Local tests cover schema, required fields, row counts and the agreed KPI.
+- [ ] Preserve the source snapshot and manifest in S3; publish Parquet data with batch/run lineage.
+- [ ] Register the AWS tables in Glue Data Catalog and query the candidate MART in Athena.
+- [ ] Reconcile DuckDB and Athena by schema, row count and month × region KPI.
+- [ ] Preserve one real AI conversion example, human review and test evidence.
+- [ ] Publish only the validated Athena view; retain the last good version after failure.
+- [ ] Streamlit runs on AWS, shows KPI/filter/freshness/validation state and uses read-only IAM access.
+- [ ] Document local rerun, AWS rerun, limitations and an end-to-end demo.
 
-- [ ] Confirm one usable source dataset, available legacy SQL/report logic and the monthly-sales KPI definition.
-- [ ] Review the architecture, name component owners and agree on handoffs.
-- [ ] Export CSV/Parquet, preserve in S3 and load the data into Snowflake RAW.
-- [ ] Capture source file, batch manifest, loaded row count and relevant failure records.
-- [ ] AI-convert at least one real legacy SQL query/report transformation, preserving the original, output and human review. If no legacy SQL exists, disclose this and demonstrate AI conversion of the documented original report logic without inventing an original query.
-- [ ] Build STAGING and a candidate MART that calculates the selected KPI.
-- [ ] Compare source/RAW counts and monthly/regional KPI values with the independent baseline; resolve or document all critical differences.
-- [ ] Make only validated output available for Streamlit; a failed candidate must not replace published data.
-- [ ] Show at least one KPI, a month/region filter, the published batch and data-refresh time.
-- [ ] Publish rerun instructions, validation evidence, limitations and the end-to-end demo steps.
+## 8. Proposed repository structure
 
-**Acceptance principle:** "SQL runs" or "the dashboard has numbers" is not proof of a successful migration. Original source evidence, AI conversion/review, independent reconciliation and a verified published result are the minimum.
+    datathon/
+    ├── README.md / README_CN.md
+    ├── doc/
+    │   ├── aws-python-architecture.{html,json}
+    │   └── <Role>/{README.md,README_CN.md}
+    ├── data/fixtures/
+    ├── src/{extract,transform,ingest,pipeline,validate}.py
+    ├── sql/{common,duckdb,athena}/
+    ├── tests/{unit,contract,integration}/
+    ├── dashboard/app.py
+    ├── docs/{data-dictionary,source-to-target,ai-conversion-log,validation-report}.md
+    └── infra/
 
-## 7. Proposed repository structure
+## 9. Cost and security guardrails
 
-The following directories are **planned**, not claims that the corresponding implementation already exists. Preserve existing candidate Excel workbooks and do not assume their column names.
+- Use least-privilege IAM roles, separate write and read-only paths, encrypted S3 buckets and blocked public access.
+- Use Athena workgroup limits, compressed partitioned Parquet and lifecycle policies to control scan/storage cost.
+- Configure AWS Budgets before creating online resources.
+- Use synthetic or de-identified data unless explicit authority and privacy controls exist.
+- Treat App Runner, Athena and pipeline logs as potentially sensitive; avoid logging raw records or secrets.
 
-```text
-datathon/
-├── README.md                       # English overview
-├── README_CN.md                    # Chinese overview
-├── doc/
-│   ├── Solution_Architect/{README.md,README_CN.md}
-│   ├── Cloud_Engineer/{README.md,README_CN.md}
-│   ├── Data_Engineer/{README.md,README_CN.md}
-│   ├── Analytics_Engineer/{README.md,README_CN.md}
-│   ├── Data_analyst/{README.md,README_CN.md}
-│   └── Data_Scientist/{README.md,README_CN.md}
-├── data/                           # Set Git tracking rules; exclude sensitive data
-├── src/
-│   ├── extract.py                  # Source export
-│   ├── ingest.py                   # S3 → Snowflake RAW
-│   ├── pipeline.py                 # State and batch coordination
-│   └── validate.py                 # Data quality and KPI reconciliation
-├── sql/
-│   ├── legacy/
-│   ├── staging/
-│   ├── mart/
-│   └── tests/
-├── dashboard/app.py                # Streamlit
-├── docs/
-│   ├── architecture.md
-│   ├── data-dictionary.md
-│   ├── source-to-target.md
-│   ├── ai-conversion-log.md
-│   └── validation-report.md
-└── infra/                          # Cloud configuration docs; no secrets
-```
-
-## 8. Security, costs and open questions
-
-- Apply least-privilege AWS IAM and Snowflake roles. Streamlit should access published MART with a read-only identity; keep credentials in a secure server-side configuration or secret manager, never in the repository.
-- Prefer synthetic or de-identified demo data; establish permissions and applicable privacy obligations before using real personal or health information.
-- Set AWS budget alerts, choose a small Snowflake warehouse with auto-suspend, and avoid unnecessary always-on services.
-- **Still to verify:** actual source schema, availability of legacy SQL, team size, event deadline, cloud budget and deployment requirements. If executable legacy SQL does not exist, disclose that limitation and use a human-confirmed original report transformation as the AI migration example; do not fabricate a legacy query.
-
-**Implementation status:** This document is a proposed design. Update task status only after the corresponding implementation and test evidence exist. Detailed role-level acceptance requirements are in the linked `doc/` READMEs.
+**Still to verify:** actual source schema, available legacy SQL/report definitions, AWS account/service limits, budget, team ownership and event deadline.
