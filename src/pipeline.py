@@ -27,12 +27,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import duckdb
+import pandas as pd
+
+from extract import xlsx_to_raw_csv
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 # 输出目录；测试时可以用环境变量 DATA_DIR 指向临时文件夹
 DATA = Path(os.getenv("DATA_DIR", BASE_DIR / "data"))
 RUN_LOG = DATA / "runs" / "run_log.csv"
 DEFAULT_SOURCE = BASE_DIR / "data" / "legacy_dirty" / "sales_dirty.csv"
+DEFAULT_TRUTH_LOG = BASE_DIR / "data" / "corruption_manifest" / "corruption_log.csv"
+BASELINE_DIR = BASE_DIR / "data" / "grouth_truth"
 
 
 def now():
@@ -103,12 +108,19 @@ def run_step(script, env_extra):
     return result.stdout
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--source", default=str(DEFAULT_SOURCE))
-    args = parser.parse_args()
-    source = Path(args.source).resolve()
+def find_price_report(raw_csv):
+    """按报表月份（第一行的 "February 2026"）找到同月的价格类型报表 *p.xlsx"""
+    month = duckdb.execute(
+        "SELECT raw_col_2 FROM read_csv(?, all_varchar = true) WHERE source_row_id = '1'",
+        [str(raw_csv)]).fetchone()[0]
+    for f in sorted(BASELINE_DIR.glob("*p.xlsx")):
+        if pd.read_excel(f, header=None, nrows=1).iloc[0, 1] == month:
+            return month, f
+    return month, None
 
+
+def run_one(source, truth_log):
+    """处理一个源文件（CSV 或 Excel）。成功返回 True，失败返回 False。"""
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]
     batch_id = "unknown"
     log_state(run_id, batch_id, "PENDING", f"source={source.name}")
@@ -122,33 +134,38 @@ def main():
         log_state(run_id, batch_id, "INGESTING", f"sha256={checksum[:12]}…")
 
         raw_dir = DATA / "raw" / batch_id
-        raw_file = raw_dir / "source.csv"
+        original = raw_dir / f"source{source.suffix.lower()}"   # 原样保存的源文件
+        raw_file = raw_dir / "source.csv"                        # pipeline 读取的 RAW CSV
         manifest_file = raw_dir / "manifest.json"
 
-        if raw_file.exists():
+        if original.exists():
             # 不可变：同一批次已经存在，就不再覆盖
-            if sha256_of(raw_file) != checksum:
+            if sha256_of(original) != checksum:
                 raise RuntimeError("RAW 快照被改动过！与 batch_id 不一致")
-            print(f"    RAW 已存在，跳过复制: {raw_file.relative_to(DATA.parent)}")
+            print(f"    RAW 已存在，跳过: {raw_dir.relative_to(DATA.parent)}")
         else:
             raw_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, raw_file)
+            shutil.copy2(source, original)
+            if source.suffix.lower() == ".xlsx":
+                xlsx_to_raw_csv(original, raw_file)              # Excel → RAW CSV（不改内容）
             row_count = duckdb.sql(
                 f"SELECT COUNT(*) FROM read_csv('{raw_file}', all_varchar=true)"
             ).fetchone()[0]
             manifest = {
                 "batch_id": batch_id,
                 "source_file": source.name,
+                "source_format": source.suffix.lower().lstrip("."),
                 "sha256": checksum,
+                "raw_csv_sha256": sha256_of(raw_file),
                 "row_count": row_count,
-                "size_bytes": raw_file.stat().st_size,
+                "size_bytes": original.stat().st_size,
                 "extracted_at_utc": now(),
                 "first_run_id": run_id,
             }
             manifest_file.write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
             print(f"    已写出 RAW 快照和 manifest: {raw_dir.relative_to(DATA.parent)}")
 
-        # ---------------- TRANSFORMING：STAGING ----------------
+        # ---------------- TRANSFORMING：STAGING + MART ----------------
         staging_dir = DATA / "staging" / f"batch_id={batch_id}"
         log_state(run_id, batch_id, "TRANSFORMING", str(staging_dir.relative_to(DATA.parent)))
         run_step("transform.py", {"RAW_CSV": raw_file, "STAGING_DIR": staging_dir})
@@ -159,23 +176,48 @@ def main():
                              "MART_DIR": mart_dir, "BATCH_ID": batch_id, "RUN_ID": run_id})
 
         # ---------------- VALIDATING ----------------
+        month, price_xlsx = find_price_report(raw_file)
         validation_dir = DATA / "validation" / f"run_id={run_id}"
-        log_state(run_id, batch_id, "VALIDATING", str(validation_dir.relative_to(DATA.parent)))
-        run_step("validate.py", {"STAGING_DIR": staging_dir, "VALIDATION_DIR": validation_dir})
+        log_state(run_id, batch_id, "VALIDATING",
+                  f"{month}; baseline={price_xlsx.name if price_xlsx else 'MISSING'}")
+        run_step("validate.py", {"STAGING_DIR": staging_dir, "VALIDATION_DIR": validation_dir,
+                                 "PRICE_XLSX": price_xlsx or "",
+                                 "TRUTH_LOG": truth_log or ""})
         overall = (validation_dir / "overall.txt").read_text()
         row_lineage(raw_file, staging_dir, mart_dir, validation_dir / "row_lineage.csv")
 
         # 发布（PUBLISHED）由 RELEASE-001 负责，这里只给出"可以发布"的结论
         log_state(run_id, batch_id, "VALIDATED", overall)
-        print(f"\n✅ run {run_id} 完成，结论: {overall}")
+        print(f"✅ run {run_id} 完成，结论: {overall}\n")
+        return True
 
     except Exception as e:
         # 记录哪一步失败 + 具体的错误原因
         msg = [x.strip() for x in str(e).splitlines() if x.strip()]
         reason = next((x for x in reversed(msg) if "Error" in x), msg[-1])
         log_state(run_id, batch_id, "FAILED", " | ".join(dict.fromkeys([msg[0], reason])))
-        print(f"\n❌ run {run_id} 失败，详情见 {RUN_LOG.relative_to(DATA.parent)}")
-        sys.exit(1)
+        print(f"❌ run {run_id} 失败，详情见 {RUN_LOG.relative_to(DATA.parent)}\n")
+        return False
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source", nargs="+", default=[str(DEFAULT_SOURCE)],
+                        help="一个或多个源文件（.csv 或 .xlsx）")
+    parser.add_argument("--truth-log", default=None,
+                        help="注入错误的答案文件；默认只对 sales_dirty.csv 使用")
+    args = parser.parse_args()
+
+    results = []
+    for src in args.source:
+        source = Path(src).resolve()
+        truth = args.truth_log or (str(DEFAULT_TRUTH_LOG) if source == DEFAULT_SOURCE else None)
+        results.append((source.name, run_one(source, truth)))
+
+    print("汇总:")
+    for name, ok in results:
+        print(f"  {'✅' if ok else '❌'} {name}")
+    sys.exit(0 if all(ok for _, ok in results) else 1)
 
 
 if __name__ == "__main__":

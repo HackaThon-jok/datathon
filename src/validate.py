@@ -1,8 +1,8 @@
 """
 VALIDATE：用独立的基准检查 STAGING 结果。
 
-检查 A  检测到的问题  vs  corruption_log.csv（注入错误时留下的"答案"）
-检查 B  明细加总      vs  文件里的汇总行  vs  价格类型报表 2026-1p.xlsx
+检查 A  检测到的问题  vs  注入错误的"答案"（TRUTH_LOG，只有测试数据才有）
+检查 B  明细加总      vs  文件里的汇总行  vs  同月的价格类型报表（PRICE_XLSX）
 
 运行：python src/validate.py
 输出：data/validation/validation_report.csv
@@ -15,15 +15,21 @@ import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 STAGING = Path(os.getenv("STAGING_DIR", BASE_DIR / "data" / "staging"))
-LOG_CSV = BASE_DIR / "data" / "corruption_manifest" / "corruption_log.csv"
-PRICE_XLSX = BASE_DIR / "data" / "grouth_truth" / "2026-1p.xlsx"
+# 空字符串 = 没有这个基准（例如真实数据没有"注入错误的答案"）
+LOG_CSV = os.getenv("TRUTH_LOG", str(BASE_DIR / "data" / "corruption_manifest" / "corruption_log.csv"))
+PRICE_XLSX = os.getenv("PRICE_XLSX", str(BASE_DIR / "data" / "grouth_truth" / "2026-1p.xlsx"))
 OUT_DIR = Path(os.getenv("VALIDATION_DIR", BASE_DIR / "data" / "validation"))
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 con = duckdb.connect()
 con.execute(f"CREATE VIEW lines  AS SELECT * FROM '{STAGING / 'sales_lines.parquet'}'")
 con.execute(f"CREATE VIEW issues AS SELECT * FROM '{STAGING / 'dq_issues.parquet'}'")
-con.execute(f"CREATE VIEW truth  AS SELECT * FROM read_csv('{LOG_CSV}')")
+if LOG_CSV:
+    con.execute(f"CREATE VIEW truth  AS SELECT * FROM read_csv('{LOG_CSV}')")
+else:
+    con.execute("""CREATE VIEW truth AS
+                   SELECT NULL::INT AS source_row_id, NULL AS issue_type, NULL AS field
+                   WHERE FALSE""")
 
 results = []   # 每一项检查的结果都放进这里
 
@@ -55,16 +61,23 @@ fp = int((~cmp.in_truth & cmp.detected).sum())   # 误报
 precision = tp / (tp + fp) if tp + fp else 0
 recall    = tp / (tp + fn) if tp + fn else 0
 
-print("检查 A：问题检测 vs corruption_log")
-print(f"  找对 TP={tp}  漏掉 FN={fn}  误报 FP={fp}")
-print(f"  precision={precision:.2%}  recall={recall:.2%}")
-if fn or fp:
-    print(cmp[cmp.in_truth != cmp.detected].to_string(index=False))
-
-record("A. issue detection recall", 1.0, round(recall, 4),
-       "PASS" if recall == 1 else "FAIL", f"TP={tp}, FN={fn}")
-record("A. issue detection precision", 1.0, round(precision, 4),
-       "PASS" if precision == 1 else "FAIL", f"FP={fp}")
+if LOG_CSV:
+    print("检查 A：问题检测 vs corruption_log")
+    print(f"  找对 TP={tp}  漏掉 FN={fn}  误报 FP={fp}")
+    print(f"  precision={precision:.2%}  recall={recall:.2%}")
+    if fn or fp:
+        print(cmp[cmp.in_truth != cmp.detected].to_string(index=False))
+    record("A. issue detection recall", 1.0, round(recall, 4),
+           "PASS" if recall == 1 else "FAIL", f"TP={tp}, FN={fn}")
+    record("A. issue detection precision", 1.0, round(precision, 4),
+           "PASS" if precision == 1 else "FAIL", f"FP={fp}")
+else:
+    # 没有"答案"：只报告检测到多少问题；有问题不算失败，但必须被看见
+    n_issues = len(cmp)
+    print(f"检查 A：没有注入错误的答案，检测到 {n_issues} 个数据质量问题")
+    record("A. data quality issues detected", 0, n_issues,
+           "PASS" if n_issues == 0 else "PASS WITH ACCEPTED EXCEPTIONS",
+           "" if n_issues == 0 else "见 dq_issues.parquet")
 
 # ============================================================
 # 检查 B：对账 —— 明细加总 vs 两个独立的 Total
@@ -83,11 +96,14 @@ store = con.sql("""
     SELECT orders, qty, amount FROM lines WHERE row_type = 'store_total'
 """).df().iloc[0]
 
-# B3  另一份独立报表：按价格类型的 Total 行
+# B3  另一份独立报表：同月的价格类型报表 Total 行
+if not PRICE_XLSX:
+    raise SystemExit("缺少独立基准 PRICE_XLSX（同月的价格类型报表）")
 p = pd.read_excel(PRICE_XLSX, header=None)
 p_total = p[p[0] == "Total"].iloc[0]
 price = {"orders": int(p_total[1]), "qty": int(p_total[2]),
          "amount": round(float(p_total[3]), 2)}
+print(f"\n独立基准: {Path(PRICE_XLSX).name}")
 
 print("\n检查 B：对账")
 print(f"  {'指标':<8}{'明细加总':>12}{'门店汇总行':>12}{'价格类型表':>12}  明细里 NULL 行数")

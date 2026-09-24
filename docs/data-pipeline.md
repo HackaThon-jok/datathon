@@ -52,3 +52,14 @@ A mismatch fails the run.
 ## Failure handling
 
 Missing, empty or wrongly structured source files end in state `FAILED`, with the failing step and error recorded in `data/runs/run_log.csv` (covered by `tests/test_failures.py`).
+
+## All months (real legacy Excel)
+
+```bash
+python src/pipeline.py --source data/grouth_truth/2026-[1-4].xlsx
+```
+
+- `.xlsx` sources are copied unchanged to `data/raw/<batch_id>/source.xlsx` and converted to `source.csv` by `src/extract.py` (text only, no interpretation).
+- Each month is validated against the price-type report of the **same month** (`2026-Np.xlsx`); a missing baseline fails the run.
+- The injected-error answer file is only used for `data/legacy_dirty/sales_dirty.csv` (or `--truth-log`).
+- ⚠️ Candidate MART folders accumulate across runs. Consumers must read the **published** version (RELEASE-001), not all candidates, or months will be double-counted.
