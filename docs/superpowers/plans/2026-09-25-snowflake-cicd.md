@@ -42,7 +42,6 @@
 
 - [ ] **Step 1: Write failing standard-library unit tests**
 
-Create tests for safe SQL, each conflict marker (`<<<<<<<`, `=======`, `>>>>>>>`), mixed-case `USE ROLE ACCOUNTADMIN`, whitespace-separated `DROP DATABASE`/`DROP SCHEMA`, safe comments, and multiple input files. Tests import `check_files(paths: Sequence[Path]) -> list[str]` and `main(argv: Sequence[str] | None = None) -> int`.
 
 ```python
 def test_rejects_mixed_case_accountadmin(tmp_path):
