@@ -13,3 +13,5 @@ db/*.duckdb
 db/*.duckdb.wal
 
 *.log
+# Reproducible local migration artifacts (evidence is under docs/evidence)
+artifacts/
