@@ -7,15 +7,17 @@ VALIDATE：用独立的基准检查 STAGING 结果。
 运行：python src/validate.py
 输出：data/validation/validation_report.csv
 """
+import os
+import sys
 from pathlib import Path
 import duckdb
 import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-STAGING = BASE_DIR / "data" / "staging"
+STAGING = Path(os.getenv("STAGING_DIR", BASE_DIR / "data" / "staging"))
 LOG_CSV = BASE_DIR / "data" / "corruption_manifest" / "corruption_log.csv"
 PRICE_XLSX = BASE_DIR / "data" / "grouth_truth" / "2026-1p.xlsx"
-OUT_DIR = BASE_DIR / "data" / "validation"
+OUT_DIR = Path(os.getenv("VALIDATION_DIR", BASE_DIR / "data" / "validation"))
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 con = duckdb.connect()
@@ -123,3 +125,7 @@ else:
 print("\n" + report.to_string(index=False))
 print(f"\n总结论: {overall}")
 print(f"报告已写出: {OUT_DIR / 'validation_report.csv'}")
+
+# 把结论交给 pipeline：FAIL 时退出码为 1
+(OUT_DIR / "overall.txt").write_text(overall)
+sys.exit(1 if overall == "FAIL" else 0)

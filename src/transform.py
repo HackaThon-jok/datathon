@@ -5,12 +5,14 @@ STAGING 层：把 legacy 报表 CSV 变成一行一条记录的干净表。
 输出：data/staging/sales_lines.parquet   干净的明细行
       data/staging/dq_issues.parquet     检测到的数据质量问题
 """
+import os
 from pathlib import Path
 import duckdb
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-RAW_CSV = BASE_DIR / "data" / "legacy_dirty" / "sales_dirty.csv"
-OUT_DIR = BASE_DIR / "data" / "staging"
+# 默认值 = 单独运行时用；pipeline.py 会通过环境变量传入每个批次自己的路径
+RAW_CSV = Path(os.getenv("RAW_CSV", BASE_DIR / "data" / "legacy_dirty" / "sales_dirty.csv"))
+OUT_DIR = Path(os.getenv("STAGING_DIR", BASE_DIR / "data" / "staging"))
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 con = duckdb.connect()

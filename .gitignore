@@ -13,3 +13,4 @@ db/*.duckdb
 db/*.duckdb.wal
 
 *.log
+data/runs/
