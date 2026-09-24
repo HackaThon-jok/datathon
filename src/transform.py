@@ -116,7 +116,7 @@ con.execute(f"""
 print("行类型统计（去重后）:")
 print(con.sql("SELECT row_type, line_type, COUNT(*) AS n FROM parsed WHERE copy_no = 1 GROUP BY ALL ORDER BY n DESC"))
 print("解析示例:")
-print(con.sql("SELECT item_code, brand, item_name, variant, line_type FROM parsed WHERE variant IS NOT NULL OR line_type <> 'product' LIMIT 6"))
+print(con.sql("SELECT item_code, brand, item_name, variant, line_type FROM parsed WHERE copy_no = 1 AND (variant IS NOT NULL OR line_type <> 'product') LIMIT 6"))
 print("检测到的问题:")
 print(con.sql("SELECT issue_type, field, COUNT(*) AS n FROM dq_issues GROUP BY ALL ORDER BY n DESC"))
 print(f"已写出: {OUT_DIR}")
