@@ -29,9 +29,10 @@ from pathlib import Path
 import duckdb
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-DATA = BASE_DIR / "data"
+# 输出目录；测试时可以用环境变量 DATA_DIR 指向临时文件夹
+DATA = Path(os.getenv("DATA_DIR", BASE_DIR / "data"))
 RUN_LOG = DATA / "runs" / "run_log.csv"
-DEFAULT_SOURCE = DATA / "legacy_dirty" / "sales_dirty.csv"
+DEFAULT_SOURCE = BASE_DIR / "data" / "legacy_dirty" / "sales_dirty.csv"
 
 
 def now():
@@ -56,6 +57,40 @@ def log_state(run_id, batch_id, state, detail=""):
             w.writerow(["run_id", "batch_id", "state", "timestamp_utc", "detail"])
         w.writerow([run_id, batch_id, state, now(), detail])
     print(f"[{state:<12}] {detail}")
+
+
+def row_lineage(raw_file, staging_dir, mart_dir, out_file):
+    """源文件 → STAGING → MART 每一步的行数，并检查能否对上"""
+    con = duckdb.connect()
+    one = lambda sql: con.execute(sql).fetchone()[0]
+    source = one(f"SELECT COUNT(*) FROM read_csv('{raw_file}', all_varchar=true)")
+    header = one(f"SELECT COUNT(*) FROM read_csv('{raw_file}', all_varchar=true) "
+                 "WHERE CAST(source_row_id AS INT) <= 2")
+    dups = one(f"SELECT COUNT(*) FROM '{staging_dir}/dq_issues.parquet' "
+               "WHERE issue_type = 'duplicate_row'")
+    staging = one(f"SELECT COUNT(*) FROM '{staging_dir}/sales_lines.parquet'")
+    fact = one(f"SELECT COUNT(*) FROM '{mart_dir}/fact_monthly_sales.parquet'")
+    totals = one(f"SELECT COUNT(*) FROM '{mart_dir}/report_totals.parquet'")
+
+    rows = [
+        ("1 source file (RAW)", source, ""),
+        ("2 - header rows", -header, "report layout, not data"),
+        ("3 - duplicate rows", -dups, "logged in dq_issues"),
+        ("4 = STAGING sales_lines", staging, "expected = 1 + 2 + 3"),
+        ("5 MART fact_monthly_sales", fact, "item lines"),
+        ("6 MART report_totals", totals, "store total + grand total"),
+    ]
+    with open(out_file, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["step", "rows", "note"])
+        w.writerows(rows)
+    for step, n, note in rows:
+        print(f"    {step:<28}{n:>6}  {note}")
+
+    if source - header - dups != staging:
+        raise RuntimeError(f"行数对不上: {source} - {header} - {dups} != {staging}")
+    if fact + totals != staging:
+        raise RuntimeError(f"行数对不上: MART {fact} + {totals} != STAGING {staging}")
 
 
 def run_step(script, env_extra):
@@ -94,7 +129,7 @@ def main():
             # 不可变：同一批次已经存在，就不再覆盖
             if sha256_of(raw_file) != checksum:
                 raise RuntimeError("RAW 快照被改动过！与 batch_id 不一致")
-            print(f"    RAW 已存在，跳过复制: {raw_file.relative_to(BASE_DIR)}")
+            print(f"    RAW 已存在，跳过复制: {raw_file.relative_to(DATA.parent)}")
         else:
             raw_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, raw_file)
@@ -111,11 +146,11 @@ def main():
                 "first_run_id": run_id,
             }
             manifest_file.write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
-            print(f"    已写出 RAW 快照和 manifest: {raw_dir.relative_to(BASE_DIR)}")
+            print(f"    已写出 RAW 快照和 manifest: {raw_dir.relative_to(DATA.parent)}")
 
         # ---------------- TRANSFORMING：STAGING ----------------
         staging_dir = DATA / "staging" / f"batch_id={batch_id}"
-        log_state(run_id, batch_id, "TRANSFORMING", str(staging_dir.relative_to(BASE_DIR)))
+        log_state(run_id, batch_id, "TRANSFORMING", str(staging_dir.relative_to(DATA.parent)))
         run_step("transform.py", {"RAW_CSV": raw_file, "STAGING_DIR": staging_dir})
 
         # MART 候选版本：每次运行单独一个目录（README 第 4 节 candidate/run_id=...）
@@ -125,17 +160,21 @@ def main():
 
         # ---------------- VALIDATING ----------------
         validation_dir = DATA / "validation" / f"run_id={run_id}"
-        log_state(run_id, batch_id, "VALIDATING", str(validation_dir.relative_to(BASE_DIR)))
+        log_state(run_id, batch_id, "VALIDATING", str(validation_dir.relative_to(DATA.parent)))
         run_step("validate.py", {"STAGING_DIR": staging_dir, "VALIDATION_DIR": validation_dir})
         overall = (validation_dir / "overall.txt").read_text()
+        row_lineage(raw_file, staging_dir, mart_dir, validation_dir / "row_lineage.csv")
 
         # 发布（PUBLISHED）由 RELEASE-001 负责，这里只给出"可以发布"的结论
         log_state(run_id, batch_id, "VALIDATED", overall)
         print(f"\n✅ run {run_id} 完成，结论: {overall}")
 
     except Exception as e:
-        log_state(run_id, batch_id, "FAILED", str(e).splitlines()[0])
-        print(f"\n❌ run {run_id} 失败，详情见 {RUN_LOG.relative_to(BASE_DIR)}")
+        # 记录哪一步失败 + 具体的错误原因
+        msg = [x.strip() for x in str(e).splitlines() if x.strip()]
+        reason = next((x for x in reversed(msg) if "Error" in x), msg[-1])
+        log_state(run_id, batch_id, "FAILED", " | ".join(dict.fromkeys([msg[0], reason])))
+        print(f"\n❌ run {run_id} 失败，详情见 {RUN_LOG.relative_to(DATA.parent)}")
         sys.exit(1)
 
 

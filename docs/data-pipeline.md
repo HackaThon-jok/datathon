@@ -36,3 +36,19 @@ python -m pytest -v                        # automated tests
 - MART grain: one row per `report_month` × `item_code`.
 - `has_dq_issue = true` marks rows whose `orders` or `qty` is NULL because of a source error.
 - Report summary rows live in `report_totals`, never in the fact table.
+
+## Source profile
+
+```bash
+python src/profile_sources.py   # regenerates docs/source-profile.md from data/grouth_truth/
+```
+
+## Row lineage
+
+Every successful run writes `data/validation/run_id=<run_id>/row_lineage.csv`:
+source rows − header rows − duplicates = STAGING rows = MART fact rows + report total rows.
+A mismatch fails the run.
+
+## Failure handling
+
+Missing, empty or wrongly structured source files end in state `FAILED`, with the failing step and error recorded in `data/runs/run_log.csv` (covered by `tests/test_failures.py`).
