@@ -15,3 +15,5 @@ db/*.duckdb.wal
 *.log
 data/runs/
 .pytest_cache/
+# Reproducible local migration artifacts (evidence is under docs/evidence)
+artifacts/
