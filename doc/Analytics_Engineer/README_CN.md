@@ -2,7 +2,7 @@
 
 [简体中文](README_CN.md) · [English](README.md) · [项目总览](../../README_CN.md) · [架构图](../aws-python-architecture.html)
 
-> **技术栈：** 本地使用 Python + DuckDB；线上使用 Amazon S3 + AWS Glue Data Catalog + Amazon Athena + AWS 上的 Streamlit。
+> **技术栈：** 本地使用 Python + DuckDB；线上使用 Amazon ECS Fargate 运行容器化 Python/FastAPI，并以 Amazon S3、AWS Glue Data Catalog 和 Amazon Athena 构建 AWS 数据链路。
 
 ## 职责
 
