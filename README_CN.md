@@ -1,5 +1,7 @@
 # Datathon Use Case 4｜AI 辅助传统系统迁移
 
+> **可运行的分析工程交付：** [本地迁移与 Athena 交接](docs/ANALYTICS_HANDOFF_CN.md) · [原理讲解](docs/MY_WORK_EXPLAINED_CN.md)。当前已验证一月份单门店样本，地区映射和 AWS 实机对账尚待完成。
+
 [简体中文](README_CN.md) · [English](README.md) · [最小任务看板](KANBAN_CN.md) · [交互式架构图](doc/aws-python-architecture.html)
 
 > **项目状态：** Phase 1 本地 API 已可运行；Phase 2 AWS 部署正在进行。只有具备验收证据的事项才算完成。

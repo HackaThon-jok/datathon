@@ -1,0 +1,221 @@
+{
+  "run_id": "20260924T154249Z-48271a57",
+  "batch_id": "d7cd179c3fa2b2be",
+  "status": "FAIL",
+  "scope": "monthly store legacy report reproduction; regional publication requires mapping",
+  "source_file": "sales_dirty.csv",
+  "source_sha256": "d7cd179c3fa2b2bef828ce28540fb9a61059c9525934fd64af37ada60b38ce12",
+  "baseline_file": "2026-1.xlsx",
+  "baseline_sha256": "5087cc0e312467b4e4fb4b5eae133ad338fc5f27bdd7aac51fdb5b5c3eb9c349",
+  "raw_rows": 373,
+  "detail_rows": 362,
+  "removed_duplicates": 7,
+  "checks": [
+    {
+      "check": "one_month_store_group",
+      "passed": true,
+      "actual": "1",
+      "expected": "1"
+    },
+    {
+      "check": "legacy_month",
+      "passed": true,
+      "actual": "2026-01-01",
+      "expected": "2026-01-01"
+    },
+    {
+      "check": "legacy_store",
+      "passed": true,
+      "actual": "Kea Wellness - Central",
+      "expected": "Kea Wellness - Central"
+    },
+    {
+      "check": "legacy_orders",
+      "passed": false,
+      "actual": "528",
+      "expected": "542"
+    },
+    {
+      "check": "legacy_quantity",
+      "passed": false,
+      "actual": "2346",
+      "expected": "2395"
+    },
+    {
+      "check": "legacy_sales_amount",
+      "passed": true,
+      "actual": "89312.44",
+      "expected": "89312.44"
+    },
+    {
+      "check": "no_critical_quality_issues",
+      "passed": false,
+      "actual": "17",
+      "expected": "0"
+    },
+    {
+      "check": "detail_rows_preserved",
+      "passed": true,
+      "actual": "362",
+      "expected": "362"
+    }
+  ],
+  "issues": [
+    {
+      "code": "DUPLICATE_SOURCE_ROW",
+      "source_row_id": "7",
+      "count": 1,
+      "severity": "WARNING"
+    },
+    {
+      "code": "DUPLICATE_SOURCE_ROW",
+      "source_row_id": "111",
+      "count": 1,
+      "severity": "WARNING"
+    },
+    {
+      "code": "DUPLICATE_SOURCE_ROW",
+      "source_row_id": "214",
+      "count": 1,
+      "severity": "WARNING"
+    },
+    {
+      "code": "DUPLICATE_SOURCE_ROW",
+      "source_row_id": "261",
+      "count": 1,
+      "severity": "WARNING"
+    },
+    {
+      "code": "DUPLICATE_SOURCE_ROW",
+      "source_row_id": "285",
+      "count": 1,
+      "severity": "WARNING"
+    },
+    {
+      "code": "DUPLICATE_SOURCE_ROW",
+      "source_row_id": "316",
+      "count": 1,
+      "severity": "WARNING"
+    },
+    {
+      "code": "DUPLICATE_SOURCE_ROW",
+      "source_row_id": "354",
+      "count": 1,
+      "severity": "WARNING"
+    },
+    {
+      "code": "REGION_UNMAPPED",
+      "source_row_id": "3",
+      "severity": "WARNING"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "366",
+      "field": "orders",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "22",
+      "field": "quantity",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "26",
+      "field": "quantity",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "51",
+      "field": "orders",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "76",
+      "field": "orders",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "91",
+      "field": "quantity",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "112",
+      "field": "quantity",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "124",
+      "field": "orders",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "130",
+      "field": "orders",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "148",
+      "field": "orders",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "155",
+      "field": "orders",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "167",
+      "field": "quantity",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "230",
+      "field": "orders",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "299",
+      "field": "quantity",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "305",
+      "field": "orders",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "323",
+      "field": "orders",
+      "severity": "ERROR"
+    },
+    {
+      "code": "INVALID_OR_MISSING_NUMBER",
+      "source_row_id": "329",
+      "field": "quantity",
+      "severity": "ERROR"
+    }
+  ],
+  "region_ready": false,
+  "published": false,
+  "output_sha256": {
+    "staging_sales.parquet": "3a010948bddbce7929d84564cf13e615da5b5924db1d9b57f743332769e440c3",
+    "mart_monthly_store.parquet": "d64d9cad286c27685f4f8e8490eb67b2ad27e5cc9329a951c07200ba1f585774",
+    "baseline.parquet": "1cee75d82334f899d476cf5a7a54cadecd24e6a9ab085a9b5c0dab3bd8df00fd"
+  }
+}
