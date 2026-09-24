@@ -1,6 +1,10 @@
 ## Getting Started
 
-### Prerequisites
+[Analytics acceptance status](docs/ANALYTICS_ACCEPTANCE.md)
+
+> **Runnable analytics delivery:** [Local migration and Athena handoff](docs/ANALYTICS_HANDOFF.md), [source-to-target mapping](docs/SOURCE_TO_TARGET.md), and [AI conversion record](docs/AI_CONVERSION_LOG.md). The January single-store fixture is locally validated; region mapping and live Athena validation remain pending.
+
+[English](README.md) · [简体中文](README_CN.md) · [Minimum Kanban](KANBAN.md) · [Interactive architecture diagram](doc/aws-python-architecture.html)
 
 * Access to a Snowflake account with permission to create tables and Streamlit applications.
 * A Snowflake virtual warehouse.

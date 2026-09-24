@@ -1,0 +1,22 @@
+{
+  "time_utc": "2026-09-24T17:51:16.828236+00:00",
+  "tests_run": 31,
+  "passed": true,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "live_aws_tested": false,
+  "code_sha256": {
+    "analytics/release.py": "637ef667a2e6a626632077cf886af8b60407df89fb6399d9eb2eff51d35f938b",
+    "analytics/__init__.py": "6a564fa323b5c090019c6ac6a26ecaf667e6066329348c81d65ab2a98323f2fe",
+    "analytics/pipeline.py": "c7ccf77a1a3bb2dff742243bcc8558981a4f74dcd0462d8c53da55d9b499cbf8",
+    "analytics/cloud_validate.py": "f5fa877a74f6035b9725f6992cb26d985e30e3a6bd6f05f08ceb1c77ddc23569",
+    "analytics/contracts.py": "f198eb0f63c0c75e24bd5253fce0f8d74f92451f85da41a3ccc953e84edce2b2",
+    "analytics/verify.py": "7ba18340271b87adab2ace3146da4a70bed8cefbf6d3344cea5ee83e4e424d36",
+    "analytics/demo.py": "70e693de601d06ca8cae4d784f8cd87c01d4b8479dee880dd50aac69f452a8a2",
+    "analytics/athena.py": "3bdd6a139e39b0904e815d7983f721c0b35a02a109713f73524cc0691a986703",
+    "tests/test_analytics_cloud.py": "9bc7208d29e497811f06d851aae05896b0e910f10243e5159a85ee43eff7dda5",
+    "tests/test_analytics_extended.py": "bb6bfde92f9f4867cb191d65588515db586d460379516fcca973f8d21ce7ff1b",
+    "tests/test_analytics.py": "48559c08fb071770087ba2f52fccd0333242ab6b9d7a5c842de7f6b122de64e5"
+  }
+}
