@@ -14,3 +14,4 @@ db/*.duckdb.wal
 
 *.log
 data/runs/
+.pytest_cache/

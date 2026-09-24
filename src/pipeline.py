@@ -118,6 +118,11 @@ def main():
         log_state(run_id, batch_id, "TRANSFORMING", str(staging_dir.relative_to(BASE_DIR)))
         run_step("transform.py", {"RAW_CSV": raw_file, "STAGING_DIR": staging_dir})
 
+        # MART 候选版本：每次运行单独一个目录（README 第 4 节 candidate/run_id=...）
+        mart_dir = DATA / "mart" / "candidate" / f"run_id={run_id}"
+        run_step("mart.py", {"RAW_CSV": raw_file, "STAGING_DIR": staging_dir,
+                             "MART_DIR": mart_dir, "BATCH_ID": batch_id, "RUN_ID": run_id})
+
         # ---------------- VALIDATING ----------------
         validation_dir = DATA / "validation" / f"run_id={run_id}"
         log_state(run_id, batch_id, "VALIDATING", str(validation_dir.relative_to(BASE_DIR)))
