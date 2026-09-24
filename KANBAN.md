@@ -21,6 +21,7 @@ A task is Done when its implementation, verification command/output and relevant
 | DEV-001 | 1 | Verify the local Docker daemon and ECR login | API Owner | Docker reports Linux/x86_64 and ECR login succeeds |
 | APP-001 | 1 | Run the local FastAPI service with DuckDB | API Owner | `/health`, `/data-profile` and `/sample` return successfully |
 | DOC-001 | 1 | Align all README files to Python/DuckDB locally and ECR/ECS Fargate online | Solution Architect | English and Chinese README pairs use the same three phases |
+| DATA-001 | 1 | Confirm the monthly-sales-by-region definition and independent baseline | Data Analyst | Approved bilingual KPI contract with four reconciled monthly baselines |
 
 ## In Progress
 
@@ -50,15 +51,14 @@ These tasks follow the first successful online endpoint; they must not block it.
 
 | Order | ID | Phase | Minimum task | Owner | Acceptance evidence |
 |---:|---|---|---|---|---|
-| 1 | DATA-001 | 1 | Confirm the monthly-sales-by-region definition and independent baseline | Data Analyst | Approved KPI definition and baseline file |
-| 2 | DATA-002 | 1 | Make one local command create RAW/STAGING/MART outputs and validation evidence | Data Engineer | Repeatable command and non-duplicating rerun result |
-| 3 | AWS-007 | 2 | Store immutable source/manifest and Parquet outputs in private encrypted S3 prefixes | Data Engineer | S3 keys, checksum, row counts and encryption evidence |
-| 4 | IAM-002 | 2 | Grant the ECS task role only the required S3/Athena/Glue access | Cloud Engineer | Positive and negative permission tests |
-| 5 | DATA-003 | 2 | Register candidate tables in Glue and query them through a bounded Athena workgroup | Data Engineer | Successful query and controlled result location/scan limit |
-| 6 | VAL-001 | 2 | Reconcile DuckDB and Athena schema, row count and KPI | Data Scientist | PASS, PASS WITH ACCEPTED EXCEPTIONS, or FAIL report |
-| 7 | RELEASE-001 | 2 | Publish only the validated view/version | Solution Architect | Failed candidate cannot replace the last validated result |
-| 8 | UI-001 | 2 | Decide whether Streamlit is required for the datathon demo | Data Analyst | Explicit include/defer decision; if included, UI reads only validated data |
-| 9 | DOC-003 | 2 | Update the architecture diagram to match the verified ECS and AWS data flow | Solution Architect | Diagram and README describe the same deployed components |
+| 1 | DATA-002 | 1 | Make one local command create RAW/STAGING/MART outputs and validation evidence | Data Engineer | Repeatable command and non-duplicating rerun result |
+| 2 | AWS-007 | 2 | Store immutable source/manifest and Parquet outputs in private encrypted S3 prefixes | Data Engineer | S3 keys, checksum, row counts and encryption evidence |
+| 3 | IAM-002 | 2 | Grant the ECS task role only the required S3/Athena/Glue access | Cloud Engineer | Positive and negative permission tests |
+| 4 | DATA-003 | 2 | Register candidate tables in Glue and query them through a bounded Athena workgroup | Data Engineer | Successful query and controlled result location/scan limit |
+| 5 | VAL-001 | 2 | Reconcile DuckDB and Athena schema, row count and KPI | Data Scientist | PASS, PASS WITH ACCEPTED EXCEPTIONS, or FAIL report |
+| 6 | RELEASE-001 | 2 | Publish only the validated view/version | Solution Architect | Failed candidate cannot replace the last validated result |
+| 7 | UI-001 | 2 | Decide whether Streamlit is required for the datathon demo | Data Analyst | Explicit include/defer decision; if included, UI reads only validated data |
+| 8 | DOC-003 | 2 | Update the architecture diagram to match the verified ECS and AWS data flow | Solution Architect | Diagram and README describe the same deployed components |
 
 ## Blocked / Decisions Needed
 
@@ -75,4 +75,3 @@ These tasks follow the first successful online endpoint; they must not block it.
 - EventBridge/Step Functions scheduling and replay.
 - CloudWatch dashboards, alarms and operational runbooks.
 - Secrets rotation, incident exercises and recovery testing.
-

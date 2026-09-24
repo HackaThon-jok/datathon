@@ -11,3 +11,5 @@ six==1.17.0
 urllib3==2.8.0
 fastapi
 uvicorn[standard]
+openpyxl
+pytest

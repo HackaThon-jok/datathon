@@ -1,158 +1,58 @@
-# Datathon Use Case 4 | AI-Assisted Legacy System Migration
+## Getting Started
 
-[English](README.md) · [简体中文](README_CN.md) · [Minimum Kanban](KANBAN.md) · [Interactive architecture diagram](doc/aws-python-architecture.html)
+### Prerequisites
 
-> **Status:** Phase 1 local API is runnable; Phase 2 AWS deployment is in progress. A listed item is not complete until its acceptance evidence exists.
->
-> **Direction:** Python is the common development base, DuckDB supports local testing, and containerized Python services run online entirely on AWS.
->
-> **Core stack:** Python + DuckDB (local) + FastAPI + Docker + Amazon ECR + Amazon ECS Express Mode/Fargate + Amazon S3. AWS Glue Data Catalog and Amazon Athena are added within Phase 2 after the first online container is verified.
+* Access to a Snowflake account with permission to create tables and Streamlit applications.
+* A Snowflake virtual warehouse.
+* The legacy sales CSV file containing seven source columns and two row identifiers.
 
-## 1. Goal and scope
+### Step 1: Prepare the Snowflake Environment
 
-The goal is a verifiable migration of legacy health-supplies sales data and reporting, including an AI-assisted conversion example and independent reconciliation. The MVP produces monthly sales by region from one confirmed source dataset.
+Create the project database and the following schemas:
 
-The same three delivery phases apply to the project and every role:
+```sql
+CREATE DATABASE IF NOT EXISTS DATATHON_DEV;
 
-| Phase | Purpose | Exit condition |
-|---|---|---|
-| **Phase 1 — Local Prototype** | Build the minimum Python API and validate data locally with DuckDB | `/health`, `/data-profile` and `/sample` run locally against the controlled dataset |
-| **Phase 2 — AWS MVP** | Build the Docker image, publish it to ECR, deploy it on ECS Fargate, then connect the validated S3/Glue/Athena flow | The public AWS endpoint passes its health check and returns validated data without local credentials |
-| **Phase 3 — Production-ready** | Add automation, observability, recovery, security and infrastructure as code | Monitoring, controlled deployment and failure recovery are exercised |
+CREATE SCHEMA IF NOT EXISTS DATATHON_DEV.RAW;
+CREATE SCHEMA IF NOT EXISTS DATATHON_DEV.STAGING;
+CREATE SCHEMA IF NOT EXISTS DATATHON_DEV.MART;
+CREATE SCHEMA IF NOT EXISTS DATATHON_DEV.VALIDATION;
+```
 
-Phase 1 and Phase 2 are required for the datathon MVP. Phase 3 is an extension, not a reason to delay a working end-to-end result.
+Create the RAW table with seven VARCHAR source columns and two VARCHAR identifiers: `SOURCE_ROW_ID` and `INGEST_ROW_ID`.
 
-## 2. Architecture
+### Step 2: Import Legacy Data
 
-Open the [interactive architecture diagram](doc/aws-python-architecture.html) for theme switching, search, tracing and export. Its editable source is [doc/aws-python-architecture.json](doc/aws-python-architecture.json).
+In Snowsight, upload `sales_dirty.csv` into `DATATHON_DEV.RAW.SALES_RAW`.
 
-The main data path is:
+Skip the CSV header and verify that all nine columns are mapped correctly.
 
-    Legacy database / Excel
-      → Python extraction, transformation, manifest and validation
-      → DuckDB local tests
-      → Amazon S3 RAW / STAGING / MART Parquet
-      → AWS Glue Data Catalog
-      → Amazon Athena candidate MART
-      → Validation Gate comparing DuckDB and Athena
-      → Published Athena view
-      → FastAPI on Amazon ECS Fargate
-      → Optional Streamlit UI on the same AWS container platform
+Confirm that the RAW table contains the expected source records before proceeding.
 
-Phase 3 adds EventBridge, Step Functions, CloudWatch, IAM, Secrets Manager and infrastructure as code around this path.
+### Step 3: Run the Migration
 
-### Component boundaries
+Open a Snowflake SQL Worksheet and execute:
 
-| Component | Responsibility | Boundary |
-|---|---|---|
-| Python package | Extraction, transformations, manifests, validation and orchestration entry points | Business logic must not live only inside Streamlit |
-| DuckDB | Fast local SQL execution and pre-online contract tests | It is not the online production query service |
-| Amazon S3 | Immutable source snapshots and versioned RAW/STAGING/MART Parquet data | Do not overwrite historical source evidence |
-| AWS Glue Data Catalog | Table, schema and partition metadata | It does not transform or validate business results |
-| Amazon Athena | Online candidate and published query surfaces | Candidate output is not published until validation passes |
-| FastAPI on ECS Fargate | Minimum online API, health status and read-only data access | It uses an ECS task role and never stores AWS access keys |
-| Optional Streamlit on ECS Fargate | Dashboard and migration status after the API works | It reads only the published API or Athena surface |
-| AWS operations services | Scheduling, workflow state, logs, secrets and infrastructure definition | Added in Phase 3 after the AWS MVP works |
+`sql/01_migration.sql`
 
-## 3. Local-to-AWS development contract
+The script creates the classified STAGING data, business-ready MART table, data quality reports and migration validation results.
 
-The repository uses one Python package and explicit configuration profiles rather than separate local and cloud implementations:
+### Step 4: Launch the Dashboard
 
-- **local:** local fixtures or approved snapshots, DuckDB and local artifact paths.
-- **aws-dev:** S3, Glue and Athena candidate tables, with credentials supplied by the AWS SDK credential chain.
-- **aws-prod:** published resources and read-only dashboard access; introduced only with Phase 3 controls.
+Create a Streamlit in Snowflake application.
 
-Transformations should use a portable SQL subset where practical. When DuckDB and Athena syntax must differ, keep small engine-specific SQL adapters and test them against the same input, schema, row-count and KPI contracts. Matching query text is not required; matching agreed results is.
+Copy the contents of `dashboard/streamlit_app.py` into the application editor and run the app using a role with access to the project database.
 
-No AWS access key, secret, connection string or personal/health data belongs in Git. Use environment configuration locally and IAM roles plus AWS Secrets Manager online.
+The dashboard displays migration statistics, data quality classifications, product sales, reconciliation checks and repair candidates.
 
-## 4. Data zones, lineage and release
+### Step 5: Verify the Results
 
-Recommended S3 layout:
+Execute the queries in `sql/02_demo_queries.sql` and compare the displayed results with the dashboard.
 
-    s3://<project-bucket>/raw/<dataset>/<batch_id>/source.<csv|parquet>
-    s3://<project-bucket>/raw/<dataset>/<batch_id>/manifest.json
-    s3://<project-bucket>/staging/<dataset>/batch_id=<batch_id>/*.parquet
-    s3://<project-bucket>/mart/<dataset>/candidate/run_id=<run_id>/*.parquet
-    s3://<project-bucket>/mart/<dataset>/published/version=<version>/*.parquet
-    s3://<project-bucket>/athena-results/
+### Current Limitations
 
-Each run receives a unique run_id; each source snapshot has a batch_id, stable source identifier or SHA-256 hash, row count, extraction time and S3 key. Use these states consistently:
+The current proof of concept uses a manually uploaded CSV. Automated S3-to-Snowflake ingestion is not part of the completed implementation.
 
-    PENDING → INGESTING → TRANSFORMING → VALIDATING → PUBLISHED
-                   ↘ FAILED ←───────────────────↙
+Data repair candidates require human review and are not automatically applied to the source records.
 
-A retry creates a new run record and never erases the failed evidence. Publication changes a controlled view or version pointer only after critical checks and owner approval. A failed candidate cannot replace the last validated version.
-
-## 5. AI-assisted conversion and validation
-
-1. Preserve the original SQL or human-approved report definition, source schema and business rules.
-2. Use AI to draft Python/SQL transformations and source-to-target mappings.
-3. Human-review joins, NULLs, dates, currencies, returns, grouping, permissions and destructive operations.
-4. Run the draft first against controlled local DuckDB data.
-5. Run the approved AWS form against an isolated Athena candidate dataset.
-6. Compare source counts, required fields, monthly/region KPI values and documented quality rules.
-7. Record the prompt/model, generated output, human edits, test evidence and reviewer.
-
-AI-generated migration logic cannot also be the only ground truth. The independent baseline must come from the legacy report or a separately computed, business-approved result.
-
-## 6. Roles and phase ownership
-
-Every linked role has a separate English and Chinese README using the same three phases.
-
-| Role | Phase 1 — Local Prototype | Phase 2 — AWS MVP | Phase 3 — Production-ready |
-|---|---|---|---|
-| [Solution Architect](doc/Solution_Architect/README.md) | Scope, contracts and local architecture | AWS integration and release gate | Automated governance and recovery |
-| [Cloud Engineer](doc/Cloud_Engineer/README.md) | AWS account, naming and access plan | S3, Glue, Athena, ECR/ECS Fargate and IAM | IaC, monitoring, secrets and recovery |
-| [Data Engineer](doc/Data_Engineer/README.md) | Python extraction, DuckDB load and manifest | S3 Parquet ingestion and catalog registration | Scheduled, idempotent and recoverable ingestion |
-| [Analytics Engineer](doc/Analytics_Engineer/README.md) | Reviewed AI conversion and local MART | Athena candidate/published models and parity tests | Reusable models, lineage and optimization |
-| [Data Analyst](doc/Data_analyst/README.md) | KPI definition, baseline and dashboard contract | Streamlit implementation and business sign-off | Operational and decision-support views |
-| [Data Scientist](doc/Data_Scientist/README.md) | Local quality and reconciliation tests | Independent DuckDB/Athena validation | Drift, anomaly and validation monitoring |
-
-### Handoffs
-
-    Cloud Engineer → Data Engineer: S3 prefixes, Glue database, Athena workgroup and IAM role
-    Data Engineer → Analytics Engineer: RAW/STAGING schema, batch/run metadata and counts
-    Data Analyst → Analytics Engineer / Data Scientist: KPI definition and independent baseline
-    Analytics Engineer → Data Scientist: candidate MART, conversion record and query artifacts
-    Data Scientist → Solution Architect: validation report, exceptions and release recommendation
-    Solution Architect → Streamlit owner: approved published view and display contract
-
-## 7. MVP acceptance
-
-- [ ] Confirm one usable source, the monthly-sales-by-region definition and a source/legacy baseline.
-- [ ] A clean local Python command creates the DuckDB RAW/STAGING/MART result.
-- [ ] Local tests cover schema, required fields, row counts and the agreed KPI.
-- [ ] Preserve the source snapshot and manifest in S3; publish Parquet data with batch/run lineage.
-- [ ] Register the AWS tables in Glue Data Catalog and query the candidate MART in Athena.
-- [ ] Reconcile DuckDB and Athena by schema, row count and month × region KPI.
-- [ ] Preserve one real AI conversion example, human review and test evidence.
-- [ ] Publish only the validated Athena view; retain the last good version after failure.
-- [ ] FastAPI runs on ECS Fargate, `/health` succeeds, and the task uses IAM roles instead of stored access keys.
-- [ ] If included in the agreed MVP, Streamlit runs on ECS Fargate and reads only the validated API or Athena surface.
-- [ ] Document local rerun, AWS rerun, limitations and an end-to-end demo.
-
-## 8. Proposed repository structure
-
-    datathon/
-    ├── README.md / README_CN.md
-    ├── doc/
-    │   ├── aws-python-architecture.{html,json}
-    │   └── <Role>/{README.md,README_CN.md}
-    ├── data/fixtures/
-    ├── src/{extract,transform,ingest,pipeline,validate}.py
-    ├── sql/{common,duckdb,athena}/
-    ├── tests/{unit,contract,integration}/
-    ├── dashboard/app.py
-    ├── docs/{data-dictionary,source-to-target,ai-conversion-log,validation-report}.md
-    └── infra/
-
-## 9. Cost and security guardrails
-
-- Use least-privilege IAM roles, separate write and read-only paths, encrypted S3 buckets and blocked public access.
-- Use Athena workgroup limits, compressed partitioned Parquet and lifecycle policies to control scan/storage cost.
-- Configure AWS Budgets before creating online resources.
-- Use synthetic or de-identified data unless explicit authority and privacy controls exist.
-- Treat ECS, Athena and pipeline logs as potentially sensitive; avoid logging raw records or secrets.
-
-**Still to verify:** actual source schema, available legacy SQL/report definitions, AWS account/service limits, budget, team ownership and event deadline.
+The reported sales reconciliation validates accepted STAGING records against the MART results; full reconciliation with the original legacy Excel totals is a separate validation task.

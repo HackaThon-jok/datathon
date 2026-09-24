@@ -21,6 +21,7 @@
 | DEV-001 | 1 | 验证本地 Docker Daemon 及 ECR 登录 | API 负责人 | Docker 返回 Linux/x86_64，且 ECR 登录成功 |
 | APP-001 | 1 | 使用 DuckDB 运行本地 FastAPI 服务 | API 负责人 | `/health`、`/data-profile` 和 `/sample` 均成功返回 |
 | DOC-001 | 1 | 统一所有 README：本地 Python/DuckDB，线上 ECR/ECS Fargate | Solution Architect | 中英文 README 对使用相同三个 Phase |
+| DATA-001 | 1 | 确认“按月、地区销售额”定义及独立基准 | Data Analyst | 已批准双语 KPI 契约及四个月已对账基准 |
 
 ## In Progress（进行中）
 
@@ -50,15 +51,14 @@
 
 | 顺序 | ID | Phase | 最小任务 | 负责人 | 验收证据 |
 |---:|---|---|---|---|---|
-| 1 | DATA-001 | 1 | 确认“按月、地区销售额”定义及独立基准 | Data Analyst | 已批准 KPI 定义和基准文件 |
-| 2 | DATA-002 | 1 | 使用一条本地命令生成 RAW/STAGING/MART 输出及验证证据 | Data Engineer | 命令可重复，且重跑不会产生重复结果 |
-| 3 | AWS-007 | 2 | 将不可变源文件／Manifest 和 Parquet 输出保存到私有加密 S3 Prefix | Data Engineer | S3 Key、Checksum、行数和加密证据 |
-| 4 | IAM-002 | 2 | 仅向 ECS Task Role 授予所需 S3/Athena/Glue 权限 | Cloud Engineer | 权限成功与拒绝测试均通过 |
-| 5 | DATA-003 | 2 | 在 Glue 注册候选表，并通过受限 Athena Workgroup 查询 | Data Engineer | 查询成功，Result Location 与扫描上限受控 |
-| 6 | VAL-001 | 2 | 对账 DuckDB 与 Athena 的 Schema、行数及 KPI | Data Scientist | PASS、PASS WITH ACCEPTED EXCEPTIONS 或 FAIL 报告 |
-| 7 | RELEASE-001 | 2 | 只发布验证通过的 View／版本 | Solution Architect | 失败候选无法替换上一个已验证结果 |
-| 8 | UI-001 | 2 | 决定 Datathon 演示是否需要 Streamlit | Data Analyst | 明确纳入或延期；如纳入，UI 只读取已验证数据 |
-| 9 | DOC-003 | 2 | 更新架构图以匹配已验证的 ECS 与 AWS 数据链路 | Solution Architect | 架构图与 README 描述相同的已部署组件 |
+| 1 | DATA-002 | 1 | 使用一条本地命令生成 RAW/STAGING/MART 输出及验证证据 | Data Engineer | 命令可重复，且重跑不会产生重复结果 |
+| 2 | AWS-007 | 2 | 将不可变源文件／Manifest 和 Parquet 输出保存到私有加密 S3 Prefix | Data Engineer | S3 Key、Checksum、行数和加密证据 |
+| 3 | IAM-002 | 2 | 仅向 ECS Task Role 授予所需 S3/Athena/Glue 权限 | Cloud Engineer | 权限成功与拒绝测试均通过 |
+| 4 | DATA-003 | 2 | 在 Glue 注册候选表，并通过受限 Athena Workgroup 查询 | Data Engineer | 查询成功，Result Location 与扫描上限受控 |
+| 5 | VAL-001 | 2 | 对账 DuckDB 与 Athena 的 Schema、行数及 KPI | Data Scientist | PASS、PASS WITH ACCEPTED EXCEPTIONS 或 FAIL 报告 |
+| 6 | RELEASE-001 | 2 | 只发布验证通过的 View／版本 | Solution Architect | 失败候选无法替换上一个已验证结果 |
+| 7 | UI-001 | 2 | 决定 Datathon 演示是否需要 Streamlit | Data Analyst | 明确纳入或延期；如纳入，UI 只读取已验证数据 |
+| 8 | DOC-003 | 2 | 更新架构图以匹配已验证的 ECS 与 AWS 数据链路 | Solution Architect | 架构图与 README 描述相同的已部署组件 |
 
 ## Blocked／待决策
 
@@ -75,4 +75,3 @@
 - EventBridge／Step Functions 调度与 Replay。
 - CloudWatch Dashboard、Alarm 及运维 Runbook。
 - Secret 轮换、事故演练及恢复测试。
-

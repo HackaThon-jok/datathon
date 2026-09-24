@@ -1,0 +1,84 @@
+
+-- DEMO 1:
+-- Show the original imported legacy report.
+
+SELECT *
+
+FROM DATATHON_DEV.RAW.SALES_RAW
+
+ORDER BY
+    TRY_TO_NUMBER(INGEST_ROW_ID),
+    INGEST_ROW_ID
+
+LIMIT 10;
+
+
+-- DEMO 2:
+-- Show the result of the data quality classification.
+
+SELECT
+
+    VALIDATION_STATUS,
+
+    COUNT(*) AS RECORD_COUNT
+
+FROM DATATHON_DEV.STAGING.SALES_CLASSIFIED
+
+GROUP BY VALIDATION_STATUS
+
+ORDER BY RECORD_COUNT DESC;
+
+
+-- DEMO 3:
+-- Show the structured, business-ready product sales data.
+
+SELECT
+
+    SKU,
+
+    PRODUCT_DESCRIPTION,
+
+    PRODUCT_QUANTITY,
+
+    TOTAL_SALES_AMOUNT
+
+FROM DATATHON_DEV.MART.PRODUCT_SALES
+
+ORDER BY TOTAL_SALES_AMOUNT DESC
+
+LIMIT 10;
+
+
+-- DEMO 4:
+-- Show whether the internal migration validation checks pass.
+
+SELECT *
+
+FROM DATATHON_DEV.VALIDATION.MIGRATION_REPORT;
+
+
+-- DEMO 5:
+-- Show possible AI-assisted repair candidates
+-- awaiting human review.
+
+SELECT
+
+    SOURCE_ROW_ID,
+
+    SKU,
+
+    ORIGINAL_JAN_QUANTITY,
+
+    ORIGINAL_TOTAL_QUANTITY,
+
+    SUGGESTED_JAN_QUANTITY,
+
+    REPAIR_STATUS
+
+FROM DATATHON_DEV.VALIDATION.REPAIR_CANDIDATES
+
+ORDER BY
+    TRY_TO_NUMBER(INGEST_ROW_ID),
+    INGEST_ROW_ID
+
+LIMIT 10;
