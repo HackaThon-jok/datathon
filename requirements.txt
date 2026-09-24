@@ -9,3 +9,5 @@ python-dotenv==1.2.3
 s3transfer==0.19.2
 six==1.17.0
 urllib3==2.8.0
+fastapi
+uvicorn[standard]

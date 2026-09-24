@@ -2,7 +2,7 @@
 
 [简体中文](README_CN.md) · [English](README.md) · [项目总览](../../README_CN.md) · [架构图](../aws-python-architecture.html)
 
-> **技术栈：** 本地使用 Python + DuckDB；线上使用 Amazon S3 + AWS Glue Data Catalog + Amazon Athena + AWS 上的 Streamlit。
+> **技术栈：** 本地使用 Python + DuckDB；线上使用 Amazon ECS Fargate 运行容器化 Python/FastAPI，并以 Amazon S3、AWS Glue Data Catalog 和 Amazon Athena 构建 AWS 数据链路。
 
 ## 职责
 
@@ -26,6 +26,7 @@
 
 **任务**
 
+- 将同一套 Python 包容器化，向 ECR 发布不可变镜像，并在 ECS Fargate 上验证健康检查接口。
 - 将不可变源文件和 manifest 上传至约定的 S3 RAW Prefix。
 - 将带批次／运行元数据的类型化压缩 Parquet 写入 STAGING/MART 候选路径。
 - 注册或更新 Glue Catalog 元数据，并验证 Athena 可查询候选数据。
@@ -40,7 +41,7 @@
 
 **任务**
 
-- 将同一套 Python 包容器化用于 AWS 执行，并提供明确的阶段入口。
+- 维护版本化容器入口和经过测试的镜像回滚路径。
 - 增加 EventBridge／Step Functions 调度、检查点和中断恢复。
 - 只有存在稳定源 Key／Watermark 时才实现 Schema Evolution、Replay 和增量导入。
 - 输出结构化 CloudWatch 指标与告警，不记录敏感原始数据。

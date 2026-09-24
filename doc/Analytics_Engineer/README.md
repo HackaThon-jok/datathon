@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README_CN.md) · [Project overview](../../README.md) · [Architecture diagram](../aws-python-architecture.html)
 
-> **Stack:** Python + DuckDB locally; Amazon S3 + AWS Glue Data Catalog + Amazon Athena + Streamlit on AWS online.
+> **Stack:** Python + DuckDB locally; containerized Python/FastAPI on Amazon ECS Fargate online, with Amazon S3, AWS Glue Data Catalog and Amazon Athena for the AWS data path.
 
 ## Ownership
 

@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README_CN.md) · [Project overview](../../README.md) · [Architecture diagram](../aws-python-architecture.html)
 
-> **Stack:** Python + DuckDB locally; Amazon S3 + AWS Glue Data Catalog + Amazon Athena + Streamlit on AWS online.
+> **Stack:** Python + DuckDB locally; containerized Python/FastAPI on Amazon ECS Fargate online, with Amazon S3, AWS Glue Data Catalog and Amazon Athena for the AWS data path.
 
 ## Ownership
 
@@ -26,6 +26,7 @@ Own source inspection, extraction, file formats, manifests, batch lineage and sa
 
 **Tasks**
 
+- Containerize the same Python package, publish an immutable image to ECR and verify its health endpoint on ECS Fargate.
 - Upload immutable source files and manifests to the agreed S3 RAW prefix.
 - Write typed, compressed Parquet to STAGING/MART candidate prefixes with batch/run metadata.
 - Register or update Glue Catalog metadata and verify Athena can query the candidate data.
@@ -40,7 +41,7 @@ Own source inspection, extraction, file formats, manifests, batch lineage and sa
 
 **Tasks**
 
-- Containerise the same Python package for AWS execution and expose clear phase entry points.
+- Maintain versioned container entry points and a tested image rollback path.
 - Add EventBridge/Step Functions scheduling, checkpoints and recovery for interrupted runs.
 - Support schema evolution, replay and incremental loading only when stable source keys/watermarks exist.
 - Emit structured CloudWatch metrics and alerts without logging sensitive records.

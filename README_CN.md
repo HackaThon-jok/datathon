@@ -1,12 +1,12 @@
 # Datathon Use Case 4｜AI 辅助传统系统迁移
 
-[简体中文](README_CN.md) · [English](README.md) · [交互式架构图](doc/aws-python-architecture.html)
+[简体中文](README_CN.md) · [English](README.md) · [最小任务看板](KANBAN_CN.md) · [交互式架构图](doc/aws-python-architecture.html)
 
-> **项目状态：** 本文定义目标架构与交付计划；只有具备验收证据的事项才算完成。
+> **项目状态：** Phase 1 本地 API 已可运行；Phase 2 AWS 部署正在进行。只有具备验收证据的事项才算完成。
 >
-> **技术方向：** Python 作为统一开发基础，使用 DuckDB 做本地验证，线上平台全部运行在 AWS。
+> **技术方向：** Python 作为统一开发基础，使用 DuckDB 做本地验证，容器化 Python 服务全部在线运行于 AWS。
 >
-> **核心技术栈：** Python + DuckDB（本地）+ Amazon S3 + AWS Glue Data Catalog + Amazon Athena + AWS App Runner 上的 Streamlit。
+> **核心技术栈：** Python + DuckDB（本地）+ FastAPI + Docker + Amazon ECR + Amazon ECS Express Mode/Fargate + Amazon S3。首个线上容器验证完成后，在 Phase 2 内继续接入 AWS Glue Data Catalog 和 Amazon Athena。
 
 ## 1. 目标与范围
 
@@ -16,9 +16,9 @@
 
 | 阶段 | 目标 | 退出条件 |
 |---|---|---|
-| **Phase 1 — Local Prototype（本地原型）** | 使用 Python 与 DuckDB 快速开发和测试 | 可重复的本地运行生成已约定 KPI 及验证报告 |
-| **Phase 2 — AWS MVP** | 将验证过的流程发布至 S3、Glue 和 Athena，并通过 Streamlit 展示 | DuckDB 与 Athena 结果完成对账，AWS 看板只读取已验证数据 |
-| **Phase 3 — Production-ready（生产就绪）** | 增加自动化、可观测性、恢复、安全和 IaC | 已演练定时运行、故障恢复、监控和部署控制 |
+| **Phase 1 — Local Prototype（本地原型）** | 构建最小 Python API，并使用 DuckDB 在本地验证数据 | `/health`、`/data-profile` 和 `/sample` 可针对受控数据集在本地运行 |
+| **Phase 2 — AWS MVP** | 构建 Docker 镜像、推送至 ECR、部署到 ECS Fargate，随后接入已验证的 S3／Glue／Athena 流程 | AWS 公网接口通过健康检查，并且无需本地凭证即可返回已验证数据 |
+| **Phase 3 — Production-ready（生产就绪）** | 增加自动化、可观测性、恢复、安全及基础设施即代码 | 已演练监控、受控部署和故障恢复 |
 
 Phase 1 和 Phase 2 是 Datathon MVP 必交范围。Phase 3 是扩展目标，不应阻碍端到端 MVP 按时完成。
 
@@ -36,7 +36,8 @@ Phase 1 和 Phase 2 是 Datathon MVP 必交范围。Phase 3 是扩展目标，�
       → Amazon Athena 候选 MART
       → DuckDB 与 Athena Validation Gate
       → 已发布 Athena View
-      → AWS App Runner 上的 Streamlit
+      → Amazon ECS Fargate 上的 FastAPI
+      → 同一 AWS 容器平台上的可选 Streamlit UI
 
 Phase 3 在这条路径外围增加 EventBridge、Step Functions、CloudWatch、IAM、Secrets Manager 与 IaC。
 
@@ -49,7 +50,8 @@ Phase 3 在这条路径外围增加 EventBridge、Step Functions、CloudWatch、
 | Amazon S3 | 保存不可变源快照和版本化 RAW/STAGING/MART Parquet | 不覆盖历史源数据证据 |
 | AWS Glue Data Catalog | 管理表、Schema 与分区元数据 | 不负责业务转换或结果验证 |
 | Amazon Athena | 提供线上候选与正式查询入口 | 验证前不得将候选结果发布 |
-| App Runner 上的 Streamlit | 只读看板及迁移状态 | 只读取正式 Athena 数据入口 |
+| ECS Fargate 上的 FastAPI | 最小线上 API、健康状态及只读数据访问 | 使用 ECS Task Role，绝不保存 AWS Access Key |
+| ECS Fargate 上的可选 Streamlit | API 跑通后的看板及迁移状态 | 只读取正式 API 或 Athena 数据入口 |
 | AWS 运维服务 | 调度、工作流状态、日志、密钥和基础设施定义 | Phase 2 跑通后在 Phase 3 引入 |
 
 ## 3. 本地到 AWS 的开发契约
@@ -101,7 +103,7 @@ AI 生成的迁移逻辑不能同时作为唯一 Ground Truth。独立基准必�
 | 角色 | Phase 1 — Local Prototype | Phase 2 — AWS MVP | Phase 3 — Production-ready |
 |---|---|---|---|
 | [Solution Architect](doc/Solution_Architect/README_CN.md) | 范围、契约及本地架构 | AWS 集成与发布关卡 | 自动化治理与恢复 |
-| [Cloud Engineer](doc/Cloud_Engineer/README_CN.md) | AWS 账户、命名与权限方案 | S3、Glue、Athena、ECR/App Runner 与 IAM | IaC、监控、Secrets 与恢复 |
+| [Cloud Engineer](doc/Cloud_Engineer/README_CN.md) | AWS 账户、命名与权限方案 | S3、Glue、Athena、ECR/ECS Fargate 与 IAM | IaC、监控、Secrets 与恢复 |
 | [Data Engineer](doc/Data_Engineer/README_CN.md) | Python 提取、DuckDB 导入及 manifest | S3 Parquet 导入与 Catalog 注册 | 定时、幂等及可恢复导入 |
 | [Analytics Engineer](doc/Analytics_Engineer/README_CN.md) | AI 转换审核与本地 MART | Athena 候选／正式模型及一致性测试 | 可复用模型、血缘与优化 |
 | [Data Analyst](doc/Data_analyst/README_CN.md) | KPI 定义、独立基准及看板契约 | Streamlit 实现与业务签核 | 运营与决策支持展示 |
@@ -126,7 +128,8 @@ AI 生成的迁移逻辑不能同时作为唯一 Ground Truth。独立基准必�
 - [ ] 对账 DuckDB 与 Athena 的 Schema、行数及月份 × 地区 KPI。
 - [ ] 保留至少一项真实 AI 转换示例、人工审核及测试证据。
 - [ ] 只发布验证通过的 Athena View；失败时保留上一次正式版本。
-- [ ] Streamlit 运行在 AWS，展示 KPI、筛选、更新时间和验证状态，并使用只读 IAM 权限。
+- [ ] FastAPI 运行在 ECS Fargate，`/health` 成功，并通过 IAM Role 而不是已保存的 Access Key 获取权限。
+- [ ] 若团队将其纳入 MVP，Streamlit 运行在 ECS Fargate，并且只读取已验证的 API 或 Athena 数据入口。
 - [ ] 提供本地重跑、AWS 重跑、已知限制及端到端演示说明。
 
 ## 8. 推荐目录
@@ -150,6 +153,6 @@ AI 生成的迁移逻辑不能同时作为唯一 Ground Truth。独立基准必�
 - 使用 Athena Workgroup 限额、压缩分区 Parquet 及生命周期策略控制扫描和存储成本。
 - 创建线上资源前配置 AWS Budgets。
 - 除非具备明确授权与隐私控制，否则只使用合成或脱敏数据。
-- App Runner、Athena 及 Pipeline 日志可能包含敏感信息，不得记录原始记录或 Secret。
+- ECS、Athena 及 Pipeline 日志可能包含敏感信息，不得记录原始记录或 Secret。
 
 **仍需确认：** 真实源 Schema、旧 SQL／报表定义是否可用、AWS 账户与服务配额、预算、团队分工及比赛期限。

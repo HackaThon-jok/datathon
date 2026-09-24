@@ -2,11 +2,11 @@
 
 [简体中文](README_CN.md) · [English](README.md) · [项目总览](../../README_CN.md) · [架构图](../aws-python-architecture.html)
 
-> **技术栈：** 本地使用 Python + DuckDB；线上使用 Amazon S3 + AWS Glue Data Catalog + Amazon Athena + AWS 上的 Streamlit。
+> **技术栈：** 本地使用 Python + DuckDB；线上使用 Amazon ECS Fargate 运行容器化 Python/FastAPI，并以 Amazon S3、AWS Glue Data Catalog 和 Amazon Athena 构建 AWS 数据链路。
 
 ## 职责
 
-负责范围、架构、具名分工、跨角色契约及基于证据的发布决策。协调完整迁移，但不默认承担所有实现。Data Analyst 负责业务口径，Data Scientist 负责独立验证，并指定一名具备 Python 能力的成员负责 Streamlit。
+负责范围、架构、具名分工、跨角色契约及基于证据的发布决策。协调完整迁移，但不默认承担所有实现。Data Analyst 负责业务口径，Data Scientist 负责独立验证，并指定一名具备 Python 能力的成员负责 API／UI。
 
 ## Phase 1 — Local Prototype（本地原型）
 
@@ -15,7 +15,7 @@
 - 确认数据源、旧报表逻辑、月度地区销售额口径和 MVP 边界。
 - 定义 Python 包边界、DuckDB 本地流程、数据分层、运行状态和角色交接。
 - 要求统一的本地命令、配置规范和独立 Validation Gate。
-- 为 AWS、导入、建模、验证、Streamlit 和发布批准指定负责人。
+- 为 AWS、导入、建模、验证、API／UI 和发布批准指定负责人。
 
 **证据与退出条件**
 
@@ -26,7 +26,7 @@
 
 **任务**
 
-- 批准 S3 → Glue Catalog → Athena → Validation Gate → 正式 View → App Runner 数据流。
+- 批准 ECR → ECS Fargate 运行链路，以及 S3 → Glue Catalog → Athena → Validation Gate → 正式 View → FastAPI 数据流。
 - 定义 Schema、行数、KPI、batch_id、run_id 和查询输出的本地／AWS 契约。
 - 组织端到端集成测试；关键检查失败时阻止发布。
 - 确认看板角色只能读取已发布 Athena 数据入口。
@@ -52,7 +52,7 @@
 ## 输入与交付
 
 - 输入：数据源／KPI 定义、数据规模、AWS 限制、团队能力及验证证据。
-- 输出：已批准的契约与负责人 → 全体角色；正式 View 契约 → Streamlit 负责人；发布决策 → 团队。
+- 输出：已批准的契约与负责人 → 全体角色；正式 View 契约 → API／UI 负责人；发布决策 → 团队。
 
 ## 共同验收规则
 

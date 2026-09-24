@@ -2,11 +2,11 @@
 
 [English](README.md) · [简体中文](README_CN.md) · [Project overview](../../README.md) · [Architecture diagram](../aws-python-architecture.html)
 
-> **Stack:** Python + DuckDB locally; Amazon S3 + AWS Glue Data Catalog + Amazon Athena + Streamlit on AWS online.
+> **Stack:** Python + DuckDB locally; containerized Python/FastAPI on Amazon ECS Fargate online, with Amazon S3, AWS Glue Data Catalog and Amazon Athena for the AWS data path.
 
 ## Ownership
 
-Own scope, architecture, named ownership, cross-role contracts and the evidence-based release decision. Coordinate the whole migration without absorbing every implementation task. The Data Analyst owns business definitions, the Data Scientist owns independent validation, and a named Python-capable contributor owns Streamlit.
+Own scope, architecture, named ownership, cross-role contracts and the evidence-based release decision. Coordinate the whole migration without absorbing every implementation task. The Data Analyst owns business definitions, the Data Scientist owns independent validation, and a named Python-capable contributor owns the API/UI.
 
 ## Phase 1 — Local Prototype
 
@@ -15,7 +15,7 @@ Own scope, architecture, named ownership, cross-role contracts and the evidence-
 - Confirm the source, legacy report logic, monthly-sales-by-region definition and MVP boundary.
 - Define the Python package boundary, DuckDB local flow, data zones, run states and role handoffs.
 - Require one local command, one configuration convention and an independent validation gate.
-- Assign named owners for AWS, ingestion, modelling, validation, Streamlit and release approval.
+- Assign named owners for AWS, ingestion, modelling, validation, API/UI and release approval.
 
 **Evidence and exit criteria**
 
@@ -26,7 +26,7 @@ Own scope, architecture, named ownership, cross-role contracts and the evidence-
 
 **Tasks**
 
-- Approve the S3 → Glue Catalog → Athena → Validation Gate → published view → App Runner flow.
+- Approve the ECR → ECS Fargate runtime and the S3 → Glue Catalog → Athena → Validation Gate → published view → FastAPI data flow.
 - Define local/AWS contracts for schema, row count, KPI, batch_id, run_id and query outputs.
 - Lead the end-to-end integration test and block publication when critical checks fail.
 - Confirm the dashboard role can read only the published Athena surface.
@@ -52,7 +52,7 @@ Own scope, architecture, named ownership, cross-role contracts and the evidence-
 ## Inputs and handoffs
 
 - Inputs: source/KPI definition, data-size estimate, AWS constraints, role capacity and validation evidence.
-- Outputs: approved contracts and owners → all roles; published-view contract → Streamlit owner; release decision → team.
+- Outputs: approved contracts and owners → all roles; published-view contract → API/UI owner; release decision → team.
 
 ## Shared acceptance rules
 

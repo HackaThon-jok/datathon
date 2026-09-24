@@ -2,7 +2,7 @@
 
 [简体中文](README_CN.md) · [English](README.md) · [项目总览](../../README_CN.md) · [架构图](../aws-python-architecture.html)
 
-> **技术栈：** 本地使用 Python + DuckDB；线上使用 Amazon S3 + AWS Glue Data Catalog + Amazon Athena + AWS 上的 Streamlit。
+> **技术栈：** 本地使用 Python + DuckDB；线上使用 Amazon ECS Fargate 运行容器化 Python/FastAPI，并以 Amazon S3、AWS Glue Data Catalog 和 Amazon Athena 构建 AWS 数据链路。
 
 ## 职责
 
@@ -13,9 +13,9 @@
 **任务**
 
 - 确认 AWS 账户、Region、服务配额、预算及资源命名规范。
-- 设计 Pipeline 写入、Athena 开发、Streamlit 只读和管理员的最小权限角色。
+- 设计 Pipeline 写入、Athena 开发、ECS Task 只读和管理员的最小权限角色。
 - 说明本地 AWS 标准凭证链用法，不在仓库保存 Access Key。
-- 定义 S3 Prefix、Glue Database／Table、Athena Workgroup 及 App Runner／ECR 名称。
+- 定义 S3 Prefix、Glue Database／Table、Athena Workgroup、ECR Repository 及 ECS Service 名称。
 
 **证据与退出条件**
 
@@ -28,13 +28,13 @@
 
 - 创建加密且禁止公共访问的 S3 RAW/STAGING/MART 与 Athena Result 路径。
 - 配置 Glue Data Catalog、Athena Workgroup 限额、查询结果位置及受限 IAM Role。
-- 提供 Streamlit 的 ECR 和 App Runner 部署，并配置 Athena/S3 只读权限。
+- 将 FastAPI 镜像发布到 ECR，并通过 ECS Express Mode/Fargate 部署，同时使用受限 Task Role 和 Infrastructure Role。
 - 启用 AWS Budgets，记录资源清理及连接排障步骤。
 
 **证据与退出条件**
 
 - Data Engineer 只能写入约定 Prefix，并可查询开发 Workgroup。
-- Streamlit 能读取正式 View，但不能修改 RAW、STAGING 或 MART。
+- ECS Task 能读取正式数据入口，但不能修改 RAW、STAGING 或 MART。
 - 留存一次权限拒绝测试和一次端到端连接成功证据。
 
 ## Phase 3 — Production-ready（生产就绪）
@@ -53,7 +53,7 @@
 ## 输入与交付
 
 - 输入：数据规模／格式、Pipeline 操作、看板查询契约、预算及保留要求。
-- 输出：S3 Prefix、Glue Database、Athena Workgroup 与 IAM Role → Data Engineer；App Runner／ECR 和只读角色 → Streamlit 负责人；成本／安全状态 → Team Lead。
+- 输出：S3 Prefix、Glue Database、Athena Workgroup 与 IAM Role → Data Engineer；ECR／ECS Service 和只读 Task Role → API／UI 负责人；成本／安全状态 → Team Lead。
 
 ## 共同验收规则
 
