@@ -69,7 +69,7 @@ The Streamlit application is deployed only after the SQL model passes smoke test
 
 ## Streamlit deployment
 
-The app uses Snowflake warehouse runtime because it already obtains its session through `get_active_session()`. The CLI project creates or replaces `DATATHON_DEV.APP.DATATHON_MIGRATION_DASHBOARD`, stores source files in an internal stage managed within `APP`, and uses `DATATHON_WH` for queries.
+The app explicitly uses Snowflake warehouse runtime because it already obtains its session through `get_active_session()`. The CLI project creates or replaces `DATATHON_DEV.APP.DATATHON_MIGRATION_DASHBOARD`, stores source files in an internal stage managed within `APP`, and uses `DATATHON_WH` for queries.
 
 Only `streamlit`, `pandas`, and `snowflake-snowpark-python` are declared as application dependencies. Application source contains no credentials.
 
