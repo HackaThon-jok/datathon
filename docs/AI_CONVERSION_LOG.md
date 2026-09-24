@@ -10,7 +10,7 @@ Task summary provided to the assistant: implement a reproducible Analytics Engin
 
 ## Generated artifacts and revisions
 
-Generated artifacts are `analytics/pipeline.py`, `analytics/athena.py`, `analytics/demo.py`, `tests/test_analytics.py` and the associated documentation.
+Generated artifacts are `analytics/pipeline.py`, `analytics/athena.py`, `analytics/demo.py`, the schema contracts, local release and cloud evidence utilities, `tests/test_analytics*.py` and the associated documentation.
 
 Key revisions during automated validation:
 
@@ -19,11 +19,13 @@ Key revisions during automated validation:
 - Cast aggregate integer outputs to BIGINT for the Athena Parquet schema.
 - Check output hashes before generating a publication bundle to reject files changed after validation.
 
+Additional AI-assisted work implements full schema comparisons, conditional regional aggregation, failed-run receipts, local rollback, and cloud-query evidence collection. Schema-change rejection, corrected-snapshot replay, rollback and cloud-client error handling are tested. Cloud-client tests use simulations; no live AWS success is implied.
+
 ## Validation evidence
 
 The independent expected values are read from the legacy workbook's existing summary cells: 542 orders, 2395 quantity and 89312.44 amount. They are not calculated by the candidate transformation. Test code was also AI-assisted and does not constitute an independent human audit.
 
-Thirteen automated tests and the clean/dirty demo passed. Captured results are in `docs/evidence/`. The dirty case is expected to fail validation and leave the published local pointer unchanged. Live Athena validation remains pending.
+The expanded automated acceptance suite and clean/dirty demo passed; the current test count and implementation hashes are recorded in `docs/evidence/test-summary.json`. Captured results are in `docs/evidence/`. The dirty case is expected to fail validation and leave the published local pointer unchanged. Live Athena validation remains pending.
 
 ## Review record
 

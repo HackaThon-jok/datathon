@@ -20,3 +20,12 @@ Headers (rows 1-2), store summary (row 3), final Total are excluded from detail 
 MART grain: month × store × region × batch_id. SUM orders, quantity and amount; count detail rows. January expected detail count is 362. The independent expected aggregate is read from the legacy Excel Total row and checked against its store summary, not computed with the candidate transformation.
 
 Deduplication uses physical source identity, not equal item labels. Two different source rows with the same SKU are preserved. This dataset's duplicates retain source_row_id and allocate new ingest_row_id. Missing source IDs, wrong headers or unsupported report structure stop the run; partial output remains candidate-only and the published pointer is unchanged.
+
+
+## Explicit contracts and regional model
+
+`analytics/contracts.py` defines every output column, its order and exact DuckDB type. Every run verifies all four schemas; the Athena bundle compares `information_schema.columns` to the equivalent expected names, ordinals and types. Extra or changed source CSV columns require a new contract rather than silent acceptance.
+
+When an explicit store-to-region mapping is complete, `mart_monthly_region` groups by month × region × batch_id and checks its totals against the original report. Without a complete mapping this table is empty. `--require-region` makes missing mapping a blocking condition. This does not expand the single-store input-layout scope.
+
+Amounts must fit DECIMAL(18,2), and order/quantity values must fit signed BIGINT. Non-finite, fractional integer and overflowing values are recorded as invalid. Source store/Total values are also checked against the independent baseline, including numeric-but-incorrect summaries.

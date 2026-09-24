@@ -1,5 +1,7 @@
 # Datathon Use Case 4｜AI 辅助传统系统迁移
 
+[分析工程验收状态](docs/ANALYTICS_ACCEPTANCE.md)
+
 > **可运行的分析工程交付：** [本地迁移与 Athena 交接](docs/ANALYTICS_HANDOFF.md) · [字段映射](docs/SOURCE_TO_TARGET.md)。当前已验证一月份单门店样本，地区映射和 AWS 实机对账尚待完成。
 
 [简体中文](README_CN.md) · [English](README.md) · [最小任务看板](KANBAN_CN.md) · [交互式架构图](doc/aws-python-architecture.html)

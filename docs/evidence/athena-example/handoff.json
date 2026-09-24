@@ -1,0 +1,172 @@
+{
+  "sql_sha256": {
+    "06_failure_probe.sql": "702ddabc8d52d40d5c934fa7b8c7312f1b8662e6ed22532807df4c4a2345bd79",
+    "07_published_snapshot.sql": "9a955cb89ff08924777acd02d45288a8206d8d271a39151fa17fe680e9fcb521",
+    "03_validate.sql": "438148d4fd35fc401c5bdcc5148ca923c05dbe49ed9b5671899319d746c1e32e",
+    "04_publish_after_review.sql": "1d5649ef2bd6358f3d7bd48c574a8ee833635ed2f90410397cac01f7ff543f6f",
+    "02_candidate.sql": "91bbf82103a2855fa0e6719cef7c7041157014b59df21db7e963caf8a92576e0",
+    "05_validate_schema.sql": "4d9bdfec6d3ff19e64611af29f3b2c95fc460a14133cb6f1a5a7798f32cc6d71",
+    "01_tables.sql": "79f26c4077c77d6d20a69508c4d3954799de0e5b3f1ba9783aaa3629abf68dd7"
+  },
+  "output_sha256": {
+    "mart_monthly_region.parquet": "ff802b35073529c303189bce23fb90ad8b589a00988c35d915e76736a18bb9c8",
+    "staging_sales.parquet": "0a551b83564cedc983db36ef32cd0792c4436850b7b4450d994e04726a82f5cb",
+    "mart_monthly_store.parquet": "22f908705d66ec99b7bdcdcc924cd52eb1c47b2cf452cb694a95cdbfe5a4d6fe",
+    "baseline.parquet": "1cee75d82334f899d476cf5a7a54cadecd24e6a9ab085a9b5c0dab3bd8df00fd",
+    "raw.csv": "f5e82d42dea7d183c5fe6e109797dc0f328b8b39d6dbcea6a660b4304ed8df41",
+    "source.xlsx": "5087cc0e312467b4e4fb4b5eae133ad338fc5f27bdd7aac51fdb5b5c3eb9c349",
+    "reference.xlsx": "5087cc0e312467b4e4fb4b5eae133ad338fc5f27bdd7aac51fdb5b5c3eb9c349",
+    "schema-contract.json": "bfb7aab0c1742d5dd56c716ac0da9806c525348e7538ab404ae438d5e2e98d71"
+  },
+  "region_ready": false,
+  "expected_schemas": {
+    "staging_sales": [
+      [
+        "month",
+        "DATE"
+      ],
+      [
+        "store",
+        "VARCHAR"
+      ],
+      [
+        "region",
+        "VARCHAR"
+      ],
+      [
+        "item_code",
+        "VARCHAR"
+      ],
+      [
+        "item_label",
+        "VARCHAR"
+      ],
+      [
+        "orders",
+        "BIGINT"
+      ],
+      [
+        "quantity",
+        "BIGINT"
+      ],
+      [
+        "sales_amount",
+        "DECIMAL(18,2)"
+      ],
+      [
+        "batch_id",
+        "VARCHAR"
+      ],
+      [
+        "source_row_id",
+        "BIGINT"
+      ],
+      [
+        "ingest_row_id",
+        "BIGINT"
+      ]
+    ],
+    "local_mart": [
+      [
+        "month",
+        "DATE"
+      ],
+      [
+        "store",
+        "VARCHAR"
+      ],
+      [
+        "region",
+        "VARCHAR"
+      ],
+      [
+        "batch_id",
+        "VARCHAR"
+      ],
+      [
+        "detail_rows",
+        "BIGINT"
+      ],
+      [
+        "orders",
+        "BIGINT"
+      ],
+      [
+        "quantity",
+        "BIGINT"
+      ],
+      [
+        "sales_amount",
+        "DECIMAL(18,2)"
+      ]
+    ],
+    "baseline": [
+      [
+        "month",
+        "DATE"
+      ],
+      [
+        "store",
+        "VARCHAR"
+      ],
+      [
+        "orders",
+        "BIGINT"
+      ],
+      [
+        "quantity",
+        "BIGINT"
+      ],
+      [
+        "sales_amount",
+        "DECIMAL(18,2)"
+      ]
+    ],
+    "candidate": [
+      [
+        "month",
+        "DATE"
+      ],
+      [
+        "store",
+        "VARCHAR"
+      ],
+      [
+        "region",
+        "VARCHAR"
+      ],
+      [
+        "batch_id",
+        "VARCHAR"
+      ],
+      [
+        "detail_rows",
+        "BIGINT"
+      ],
+      [
+        "orders",
+        "BIGINT"
+      ],
+      [
+        "quantity",
+        "BIGINT"
+      ],
+      [
+        "sales_amount",
+        "DECIMAL(18,2)"
+      ]
+    ]
+  },
+  "run_id": "20260924T175116Z-92b67ce5",
+  "s3_prefix": "s3://example-bucket/analytics/20260924T175116Z-92b67ce5",
+  "database": "migration_demo",
+  "tables": {
+    "staging_sales": "migration_demo.staging_sales_r_20260924t175116z_92b67ce5",
+    "local_mart": "migration_demo.local_mart_r_20260924t175116z_92b67ce5",
+    "baseline": "migration_demo.baseline_r_20260924t175116z_92b67ce5",
+    "candidate": "migration_demo.candidate_r_20260924t175116z_92b67ce5",
+    "local_region": "migration_demo.local_region_r_20260924t175116z_92b67ce5",
+    "candidate_region": "migration_demo.candidate_region_r_20260924t175116z_92b67ce5"
+  },
+  "aws_executed": false
+}

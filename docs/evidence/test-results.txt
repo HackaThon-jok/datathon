@@ -1,0 +1,36 @@
+test_changed_parquet_cannot_reuse_validation (test_analytics.AthenaHandoffTests.test_changed_parquet_cannot_reuse_validation) ... ok
+test_cloud_query_parity_and_corruption_detection_locally (test_analytics.AthenaHandoffTests.test_cloud_query_parity_and_corruption_detection_locally) ... ok
+test_failed_run_cannot_generate_cloud_publication_sql (test_analytics.AthenaHandoffTests.test_failed_run_cannot_generate_cloud_publication_sql) ... ok
+test_clean_matches_original_report_and_parquet_contract (test_analytics.MigrationTests.test_clean_matches_original_report_and_parquet_contract) ... ok
+test_conflicting_duplicate_is_not_silently_accepted (test_analytics.MigrationTests.test_conflicting_duplicate_is_not_silently_accepted) ... ok
+test_dirty_detected_and_failed_run_cannot_replace_published (test_analytics.MigrationTests.test_dirty_detected_and_failed_run_cannot_replace_published) ... ok
+test_explicit_region_mapping_only (test_analytics.MigrationTests.test_explicit_region_mapping_only) ... ok
+test_identical_duplicate_preserves_amount_and_discount_lines (test_analytics.MigrationTests.test_identical_duplicate_preserves_amount_and_discount_lines) ... ok
+test_missing_source_row_rejected (test_analytics.MigrationTests.test_missing_source_row_rejected) ... ok
+test_numeric_edges (test_analytics.MigrationTests.test_numeric_edges) ... ok
+test_repeated_runs_do_not_append_business_rows (test_analytics.MigrationTests.test_repeated_runs_do_not_append_business_rows) ... ok
+test_shuffled_input_uses_source_order_not_arrival_order (test_analytics.MigrationTests.test_shuffled_input_uses_source_order_not_arrival_order) ... ok
+test_unknown_detail_cannot_publish (test_analytics.MigrationTests.test_unknown_detail_cannot_publish) ... ok
+test_archives_exact_sql_queries_statistics_and_snapshot_comparison (test_analytics_cloud.CloudEvidenceTests.test_archives_exact_sql_queries_statistics_and_snapshot_comparison) ... ok
+test_changed_published_snapshot_is_reported (test_analytics_cloud.CloudEvidenceTests.test_changed_published_snapshot_is_reported) ... ok
+test_edited_sql_rejected_before_any_request (test_analytics_cloud.CloudEvidenceTests.test_edited_sql_rejected_before_any_request) ... ok
+test_failed_aws_query_preserves_query_id_and_failure (test_analytics_cloud.CloudEvidenceTests.test_failed_aws_query_preserves_query_id_and_failure) ... ok
+test_failed_parity_cannot_return_pass (test_analytics_cloud.CloudEvidenceTests.test_failed_parity_cannot_return_pass) ... ok
+test_result_pagination_preserves_data_rows (test_analytics_cloud.CloudEvidenceTests.test_result_pagination_preserves_data_rows) ... ok
+test_timeout_requests_cancellation_and_keeps_receipt (test_analytics_cloud.CloudEvidenceTests.test_timeout_requests_cancellation_and_keeps_receipt) ... ok
+test_athena_schema_query_detects_type_and_extra_column_changes (test_analytics_extended.AdditionalMigrationTests.test_athena_schema_query_detects_type_and_extra_column_changes) ... ok
+test_duplicate_csv_headers_rejected (test_analytics_extended.AdditionalMigrationTests.test_duplicate_csv_headers_rejected) ... ok
+test_explicit_regional_contract_and_no_fabricated_region (test_analytics_extended.AdditionalMigrationTests.test_explicit_regional_contract_and_no_fabricated_region) ... ok
+test_failed_or_tampered_version_cannot_be_rollback_target (test_analytics_extended.AdditionalMigrationTests.test_failed_or_tampered_version_cannot_be_rollback_target) ... ok
+test_full_local_schema_check_detects_type_drift (test_analytics_extended.AdditionalMigrationTests.test_full_local_schema_check_detects_type_drift) ... ok
+test_late_corrected_snapshot_replay_and_rollback (test_analytics_extended.AdditionalMigrationTests.test_late_corrected_snapshot_replay_and_rollback) ... ok
+test_out_of_range_values_are_explicitly_invalid (test_analytics_extended.AdditionalMigrationTests.test_out_of_range_values_are_explicitly_invalid) ... ok
+test_regional_athena_sql_uses_explicit_mapping (test_analytics_extended.AdditionalMigrationTests.test_regional_athena_sql_uses_explicit_mapping) ... ok
+test_reordered_or_missing_columns_fail_closed (test_analytics_extended.AdditionalMigrationTests.test_reordered_or_missing_columns_fail_closed) ... ok
+test_schema_change_rejected_with_failure_evidence_and_no_release (test_analytics_extended.AdditionalMigrationTests.test_schema_change_rejected_with_failure_evidence_and_no_release) ... ok
+test_valid_but_wrong_summary_cannot_pass (test_analytics_extended.AdditionalMigrationTests.test_valid_but_wrong_summary_cannot_pass) ... ok
+
+----------------------------------------------------------------------
+Ran 31 tests in 8.648s
+
+OK
