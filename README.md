@@ -1,6 +1,6 @@
 ## Getting Started
 
-**Analytics Engineer:** [Wentao Yan (@WentaoYan694)](https://github.com/WentaoYan694) — [contribution scope and PR #2](docs/CONTRIBUTIONS.md).
+**Analytics Engineer:** [Wentao Yan (@WentaoYan694)](https://github.com/WentaoYan694) — [merged analytics contribution (PR #2)](https://github.com/HackaThon-jok/datathon/pull/2).
 
 [Analytics acceptance status](docs/ANALYTICS_ACCEPTANCE.md)
 
