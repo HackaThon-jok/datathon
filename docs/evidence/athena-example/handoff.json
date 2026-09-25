@@ -1,12 +1,12 @@
 {
   "sql_sha256": {
-    "06_failure_probe.sql": "702ddabc8d52d40d5c934fa7b8c7312f1b8662e6ed22532807df4c4a2345bd79",
+    "06_failure_probe.sql": "af0eca1b8b1e0c7a7a085688847e517d7643d64d5be5165df874f66f9ca4dcbe",
     "07_published_snapshot.sql": "9a955cb89ff08924777acd02d45288a8206d8d271a39151fa17fe680e9fcb521",
-    "03_validate.sql": "438148d4fd35fc401c5bdcc5148ca923c05dbe49ed9b5671899319d746c1e32e",
-    "04_publish_after_review.sql": "1d5649ef2bd6358f3d7bd48c574a8ee833635ed2f90410397cac01f7ff543f6f",
-    "02_candidate.sql": "91bbf82103a2855fa0e6719cef7c7041157014b59df21db7e963caf8a92576e0",
-    "05_validate_schema.sql": "4d9bdfec6d3ff19e64611af29f3b2c95fc460a14133cb6f1a5a7798f32cc6d71",
-    "01_tables.sql": "79f26c4077c77d6d20a69508c4d3954799de0e5b3f1ba9783aaa3629abf68dd7"
+    "03_validate.sql": "0594fb20e9cb95ddc666abaa7fb064fbcdc31db45a06689940eb7660467369c8",
+    "04_publish_after_review.sql": "26428133c89c319d93a1b60c1cef052f4ad4375d2e14ebb6d5874f40188dde1e",
+    "02_candidate.sql": "9c74ff0089ec22d019295400aec71f7fbb596f67e298d7bd325e023e678cf2d7",
+    "05_validate_schema.sql": "93d300edf2fe321e783f3245fa4e3e73d0bfad60c9d3ece285b89ac6175269ec",
+    "01_tables.sql": "99a0bd0b4438ca279de2f8f2f9e1fadb48b47765293a45555985e67ff289b948"
   },
   "output_sha256": {
     "mart_monthly_region.parquet": "ff802b35073529c303189bce23fb90ad8b589a00988c35d915e76736a18bb9c8",
@@ -157,16 +157,16 @@
       ]
     ]
   },
-  "run_id": "20260924T175116Z-92b67ce5",
-  "s3_prefix": "s3://example-bucket/analytics/20260924T175116Z-92b67ce5",
+  "run_id": "20260925T001329Z-cd00442e",
+  "s3_prefix": "s3://example-bucket/analytics/20260925T001329Z-cd00442e",
   "database": "migration_demo",
   "tables": {
-    "staging_sales": "migration_demo.staging_sales_r_20260924t175116z_92b67ce5",
-    "local_mart": "migration_demo.local_mart_r_20260924t175116z_92b67ce5",
-    "baseline": "migration_demo.baseline_r_20260924t175116z_92b67ce5",
-    "candidate": "migration_demo.candidate_r_20260924t175116z_92b67ce5",
-    "local_region": "migration_demo.local_region_r_20260924t175116z_92b67ce5",
-    "candidate_region": "migration_demo.candidate_region_r_20260924t175116z_92b67ce5"
+    "staging_sales": "migration_demo.staging_sales_r_20260925t001329z_cd00442e",
+    "local_mart": "migration_demo.local_mart_r_20260925t001329z_cd00442e",
+    "baseline": "migration_demo.baseline_r_20260925t001329z_cd00442e",
+    "candidate": "migration_demo.candidate_r_20260925t001329z_cd00442e",
+    "local_region": "migration_demo.local_region_r_20260925t001329z_cd00442e",
+    "candidate_region": "migration_demo.candidate_region_r_20260925t001329z_cd00442e"
   },
   "aws_executed": false
 }

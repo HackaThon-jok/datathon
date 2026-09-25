@@ -1,5 +1,5 @@
 {
-  "run_id": "20260924T175116Z-92b67ce5",
+  "run_id": "20260925T001329Z-cd00442e",
   "batch_id": "5087cc0e312467b4",
   "status": "PASS",
   "scope": "monthly store legacy report reproduction; regional publication requires mapping",
@@ -148,7 +148,7 @@
   },
   "published": true,
   "local_performance": {
-    "elapsed_seconds": 0.322504,
+    "elapsed_seconds": 0.258408,
     "raw_csv_bytes": 28601,
     "parquet_bytes": {
       "mart_monthly_region.parquet": 237,
