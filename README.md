@@ -1,5 +1,7 @@
 ## Getting Started
 
+**Analytics Engineer:** [Wentao Yan (@WentaoYan694)](https://github.com/WentaoYan694) — [contribution scope and PR #2](docs/CONTRIBUTIONS.md).
+
 [Analytics acceptance status](docs/ANALYTICS_ACCEPTANCE.md)
 
 > **Runnable analytics delivery:** [Local migration and Athena handoff](docs/ANALYTICS_HANDOFF.md), [source-to-target mapping](docs/SOURCE_TO_TARGET.md), and [AI conversion record](docs/AI_CONVERSION_LOG.md). The January single-store fixture is locally validated; region mapping and live Athena validation remain pending.
