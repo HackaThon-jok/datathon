@@ -63,3 +63,54 @@ python src/pipeline.py --source data/grouth_truth/2026-[1-4].xlsx
 - Each month is validated against the price-type report of the **same month** (`2026-Np.xlsx`); a missing baseline fails the run.
 - The injected-error answer file is only used for `data/legacy_dirty/sales_dirty.csv` (or `--truth-log`).
 - ⚠️ Candidate MART folders accumulate across runs. Consumers must read the **published** version (RELEASE-001), not all candidates, or months will be double-counted.
+
+## Upload to S3 (AWS-007)
+
+Requires an AWS CLI profile for your IAM user (never commit keys). Bucket `dsc-datathon-storage` is in `ap-southeast-6`.
+
+```bash
+python src/upload_s3.py --bucket dsc-datathon-storage --dry-run          # plan only, no AWS calls
+python src/upload_s3.py --bucket dsc-datathon-storage --profile <profile> --region ap-southeast-6
+```
+
+| S3 prefix | Content |
+|---|---|
+| `raw/monthly_sales/<batch_id>/` | Original source file, extracted `source.csv`, `manifest.json` |
+| `staging/monthly_sales/batch_id=<batch_id>/` | `sales_lines.parquet`, `dq_issues.parquet` |
+| `mart/monthly_sales/candidate/run_id=<run_id>/` | Candidate MART Parquet (VALIDATED runs only) |
+
+- Every object is uploaded with a SHA-256 checksum and SSE-S3 (AES256), then read back to verify both.
+- An existing key with the same checksum is skipped; a different checksum stops the run — objects are never overwritten.
+- IAM needed: `s3:ListBucket`, `s3:PutObject`, `s3:GetObject` on the prefixes above (no delete).
+- Evidence: `docs/evidence/aws-007-upload-report.csv` (44 objects; a rerun skips all 44).
+
+## Load RAW into Snowflake
+
+Create a local `.env` (git-ignored — check with `git check-ignore .env`):
+
+```
+SNOWFLAKE_ACCOUNT=lnngkqb-qs06919
+SNOWFLAKE_USER=<user>
+SNOWFLAKE_PASSWORD=<password>
+SNOWFLAKE_ROLE=DATA_LOADER
+SNOWFLAKE_WAREHOUSE=DATATHON_WH
+```
+
+```bash
+python src/load_snowflake.py --dry-run                 # print the SQL plan, no connection
+python src/load_snowflake.py                           # load all VALIDATED batches
+python src/load_snowflake.py --batch b_12f3b639b7ab    # load one batch
+```
+
+| Snowflake object | Content |
+|---|---|
+| `DATATHON_DEV.RAW.SALES_RAW_BATCHES` | Original 9 RAW columns + `BATCH_ID`, `SOURCE_FILE`, `LOADED_AT`; one row per source row |
+| `DATATHON_DEV.RAW.LOAD_MANIFEST` | One row per batch: SHA-256, expected vs loaded rows, `LOADED`/`FAILED`, user, time |
+| `DATATHON_DEV.RAW.LOAD_STAGE` | Internal stage used by `PUT` |
+
+- Only batches with a VALIDATED pipeline run are loaded; failed batches (e.g. malformed files) are skipped.
+- A batch already `LOADED` in the manifest is skipped, so reruns never duplicate rows.
+- Row counts are checked after `COPY INTO`; a mismatch is recorded as `FAILED` and stops the run.
+- `RAW.SALES_RAW` (read by `sql/datathon_migration.sql`) is **not** touched. Filter `SALES_RAW_BATCHES` by `BATCH_ID` or `SOURCE_FILE` to select a month.
+- Role `DATA_LOADER` needs: USAGE on `DATATHON_WH`, `DATATHON_DEV`, `DATATHON_DEV.RAW`; CREATE TABLE and CREATE STAGE on `DATATHON_DEV.RAW`. `ANALYST` has SELECT on both new tables.
+- Current load: 5 batches (Jan–Apr 2026 + `sales_dirty.csv`), 1,299 rows, all `LOADED` with matching counts.
