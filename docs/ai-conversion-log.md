@@ -64,3 +64,50 @@ regexp_extract(raw_col_1, '\{([^}]*)\}$', 1)                           -- varian
 - Only January 2026 has a dirty test file; February–April are not yet ingested.
 - The baseline is the legacy report itself; no transaction-level source is available.
 - AWS path (S3 / Glue / Athena) is covered by AWS-007 and DATA-003, not by this card.
+
+---
+
+# Addendum — AWS-007 (S3 upload) and Snowflake RAW load
+
+| Field | Value |
+|---|---|
+| Cards | AWS-007 (PR #4), Snowflake RAW load (PR #6) |
+| Date | 2026-09-25 |
+| AI tool / model | Claude (Anthropic), via Claude Cowork |
+| Author / operator | xiangru-he (Data Engineer) |
+| Human reviewer | xiangru-he; team review via Pull Request |
+
+## What the AI was asked to do
+
+1. Upload RAW sources, manifests and Parquet outputs to S3 following README §4 prefixes, with checksums, encryption and no overwrites.
+2. Load validated RAW batches into Snowflake without changing the table the existing migration SQL reads, with a load manifest and row-count check.
+
+## AI-generated output
+
+| File | Content |
+|---|---|
+| `src/upload_s3.py` | Dry-run plan, SHA-256 per object, SSE-S3, read-back verification, skip-identical / refuse-different, bounded retries |
+| `tests/test_upload_s3.py` | Mocked S3 (moto): layout, dry-run, idempotent rerun, no overwrite |
+| `src/load_snowflake.py` | Internal stage + `PUT` + `COPY INTO`, `LOAD_MANIFEST`, row-count check, skip loaded batches |
+| `tests/test_load_snowflake.py` | Fake cursor: SQL order, no DROP/DELETE, skip, FAILED on mismatch, validated batches only |
+
+## Human review — findings and edits
+
+| # | Finding | Action |
+|---|---|---|
+| 1 | Snowflake dry-run listed `bad.csv` — a batch whose pipeline run had FAILED — as a load candidate. | Loader now loads only batches with a VALIDATED run; test added |
+| 2 | Loader test hard-coded `/tmp/…`; on macOS `/tmp` resolves to `/private/tmp`, so the test failed. | Test checks the path suffix instead |
+| 3 | Verification query used `AS ROWS`; `ROWS` is a reserved word in Snowflake. | Renamed to `ROW_COUNT` |
+| 4 | First real S3 upload stopped with 403 on `HeadObject`: the IAM user could write but not read, so checksums could not be verified. | Script correctly stopped; `s3:GetObject` requested and granted, then upload completed |
+| 5 | Loading into `RAW.SALES_RAW` would duplicate the manually uploaded rows and mix months under repeating `SOURCE_ROW_ID`s. | Design changed to a separate `SALES_RAW_BATCHES` table with `BATCH_ID` |
+| 6 | The Snowflake role created by the admin was named `DATA_LOADER`, not the requested `DATATHON_LOADER`. | Role name set via `.env`, no code change |
+
+## Evidence
+
+| Check | Result |
+|---|---|
+| S3 upload | 44 objects, all SHA-256 verified and AES256; rerun skipped all 44 |
+| S3 permission tests | write allowed, delete denied, `published/` not written |
+| Snowflake load | 5 batches, 1,299 rows; `EXPECTED_ROWS = LOADED_ROWS` for every batch |
+| Snowflake rerun | all batches `SKIPPED_ALREADY_LOADED` |
+| Tests | `tests/test_upload_s3.py` 4 passed; `tests/test_load_snowflake.py` 6 passed |
