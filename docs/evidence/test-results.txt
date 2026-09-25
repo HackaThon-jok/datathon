@@ -31,6 +31,6 @@ test_schema_change_rejected_with_failure_evidence_and_no_release (test_analytics
 test_valid_but_wrong_summary_cannot_pass (test_analytics_extended.AdditionalMigrationTests.test_valid_but_wrong_summary_cannot_pass) ... ok
 
 ----------------------------------------------------------------------
-Ran 31 tests in 8.648s
+Ran 31 tests in 7.061s
 
 OK

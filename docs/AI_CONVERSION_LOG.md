@@ -2,7 +2,7 @@
 
 ## Scope and provenance
 
-OpenAI Codex assisted with the migration implementation, Athena SQL generator, tests and documentation. The underlying model version was not recorded. Human review and business sign-off remain pending.
+OpenAI Codex assisted with the migration implementation, Athena SQL generator, tests and documentation. The underlying model version was not recorded. Participant-led local acceptance is recorded below; full human code review and business sign-off remain pending.
 
 Source asset: `data/grouth_truth/2026-1.xlsx`, first worksheet. No legacy SQL was supplied; this conversion maps an existing report layout into typed staging records and a monthly store aggregate.
 
@@ -31,10 +31,22 @@ The expanded automated acceptance suite and clean/dirty demo passed; the current
 
 | Item | Status / evidence |
 |---|---|
+| Participant local acceptance | Wentao Yan (@WentaoYan694), 2026-09-25 (Pacific/Auckland); results below |
 | Human code reviewer and date | Pending |
 | Business rules and scope approval | Pending |
-| Human changes and rationale | Not yet recorded |
+| Acceptance evidence update | Refreshed local run evidence and recorded participant checks; no implementation changes in this acceptance pass |
 | Live Athena query IDs and results | Pending |
 | Release approval | Pending |
 
 Update this record with actual review findings and execution evidence.
+
+## Participant local acceptance — 2026-09-25
+
+Wentao Yan executed the local checks with assistant-provided command guidance. This entry was drafted with AI assistance from the displayed results and the participant's confirmation.
+
+- Ran `.venv/bin/python -m analytics.verify`: all 31 tests passed and the clean/dirty demonstration reported local acceptance success.
+- Compared the original workbook summary against `docs/evidence/monthly-store.csv` and confirmed matching totals: orders-column sum 542, quantity 2395 and sales amount 89312.44. This checks report parity; it does not establish a unique-order count or approve the business definitions.
+- Inspected the dirty-run report: validation failed, publication was false, and 7 duplicates were removed. Failed checks included orders 528 versus 542, quantity 2346 versus 2395, 17 critical quality issues versus 0, and a missing source total for orders.
+- Checked the local publication pointer after the dirty run: it still selected the clean run `20260925T001329Z-cd00442e`, whose status was PASS. The failed run `20260925T001329Z-9bfe1582` did not replace it.
+
+Supporting results are recorded in `docs/evidence/test-summary.json`, `docs/evidence/test-results.txt`, `docs/evidence/clean-validation.json` and `docs/evidence/dirty-validation.json`. The example Athena bundle was refreshed from the clean run. Live AWS execution, full code review, business approval and release approval remain pending.
